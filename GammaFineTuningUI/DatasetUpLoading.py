@@ -16,6 +16,9 @@ class UploadDataset( init_information ):
             self , 
             path : str, 
             data_files: Union[str, Sequence[str], Mapping[str, Union[str, Sequence[str]]], NoneType] = None,
+            ContextOrDocOrPassage : bool = None, 
+            QuestionOrClaimOrUserInput : bool = None, 
+            AnswerOrLabelOrResponse = bool = None,
             FineTuningType : str = 'ChatBotGrounding',
             split : str = None 
             ):
@@ -28,16 +31,21 @@ class UploadDataset( init_information ):
 
         self.path = path 
         self.data_files = data_files
-        
-        self.split = split  
+        self.ContextOrDocOrPassage = ContextOrClaimOrUserInput 
+        self.QuestionOrClaimOrUser = QuestionOrClaimOrUser
+        self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
+        self.split = split
+        self.PossibleColumns = set([
+             'context','doc', 'passage','question','claim','user','answer','label','response'
+        ]) 
 
     def load_it( self ):
         dataset = load_dataset( 
-                        path = self.path, 
-                        data_files = self.data_files, 
-                        split = self.split 
+                        path = self.path,
+                        data_files = self.data_files,
+                        split = self.split
                     )
-        return dataset 
+        return dataset
 
     def PrepareDataset(
             self,
@@ -45,38 +53,33 @@ class UploadDataset( init_information ):
             dataset : Union[ IterableDataset, Dataset ] 
             ):
         if FineTunningType.lower() == 'chatbotgrounding':
-            logging.info(
-                """
-                'make sure chatbotgrounding dataset have these columns '
-                'make sure chatbotgrounding dataset have these columns '
-                'make sure chatbotgrounding dataset have these columns '
-                'make sure chatbotgrounding dataset have these columns '
+            if not ( self.ContextOrDocOrPassage and self.QuestionOrClaimOrUser and self.AnswerOrLabelOrResponse ):
+                raise RuntimeError( ''' make sure you spacify 
+                     ContextOrDocOrPassage and QuestionOrClaimOrUser and AnswerOrLabelOrResponse
+                     these argument for chatbotgrounding 
+                     ''' )
+            else: 
+                if not self.ContextOrDocOrPassage:
+                    raise RuntimeError( ''' make sure you spacify 
+                         ContextOrDocOrPassage 
+                        argument for chatbotgrounding 
+                        ''' )
+                if not self.QuestionOrClaimOrUser:
+                    raise RuntimeError( ''' make sure you spacify 
+                         QuestionOrClaimOrUser
+                        argument for chatbotgrounding 
+                        ''' )
+                if not self.AnswerOrLabelOrResponse:
+                    raise RuntimeError( ''' make sure you spacify 
+                         AnswerOrLabelOrResponse
+                        argument for chatbotgrounding 
+                        ''' )
+            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns) 
+            'hold on here  and the logic is take only these columns from dataset and then tokenize it and done it ' 
 
 
-                    { 
-                    'doc' : 'Producing dairy milk is known ....' , 
-                    'claim' :  'Oat milk production generally requires'
-                    } 
+ 
 
-                    or
-
-                    {instruction}
-                    ==========
-                        In your answer, refer only to the context document. Do not employ any outside knowledge
-
-
-                    {question}
-                    ==========
-                    [user request]
-
-
-                    {passage 0}
-                    ==========
-                    [context document]
-
-                    optional : { full conversation } [full_prompt] 
-
-                """ 
             
 
             
