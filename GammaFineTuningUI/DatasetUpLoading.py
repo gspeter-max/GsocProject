@@ -37,17 +37,16 @@ class UploadDataset( init_information ):
         self.ContextOrDocOrPassage = ContextOrDocOrPassage
         self.QuestionOrClaimOrUserInput = QuestionOrClaimOrUserInput
         self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
-        self.split = split
         self.PossibleColumns = set([
              'context','doc','user_request', 'context_document', 'full_prompt', 'passage','question','claim','user','answer','label','response'
         ])
         self.FineTuningType = FineTuningType
 
-    def load_it( self ):
+    def load_it( self,split):
         dataset = load_dataset(
                         path = self.path,
                         data_files = self.data_files,
-                        split = self.split
+                        split = split
                     )
         return dataset
     def DataHandling(
@@ -96,4 +95,18 @@ class UploadDataset( init_information ):
                     )
             DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns)
             return dataset.select_columns(DatasetColumns)
+    def __call__(self):
+        logging.warning('''make sure your dataset look like this 
+        
+        dataset = {
+            'train' : {'features' : ['feature1','feature2'], 
+                       'num_rows' : '2873'} , 
+            'val' : {'features' : ['feature1','feature2'], 
+                       'num_rows' : '2873'},
+        }
+        if not have using data.rename_columns or another function is exist to rename columns 
+                        
+        ''')
+        data = self.load_it(split = 'public')
+        return self.PrepareDataset(data) 
 
