@@ -46,36 +46,47 @@ class UploadDataset( init_information ):
                         split = self.split
                     )
         return dataset
+    def DataHandling( 
+                self, 
+                FirstArg = '...' , 
+                SecondArg = '...', 
+                ThirdArg = '...', 
+                FourthArg = '...'
+            ):
+            def is_error( arg, name ):
+                if not arg:
+                    raise RuntimeError( f''' make sure you spacify {name}
+                        argument for chatbotgrounding 
+                        ''' )
 
+            first_arg = getattr(str,FirstArg,False)
+            second_arg = getattr(str, SecondArg,False)
+            third_arg = getattr(str, ThirdArg,False) 
+            fourth_arg = getattr(str ,FourthArg,False)
+
+            if not ( first_arg and second_arg and third_arg and fourth_arg ):
+
+                raise RuntimeError( f''' make sure you spacify
+                     {FirstArg} , {SecondArg} , {ThirdArg} , {FourthArg}
+                     these argument for chatbotgrounding
+                     ''' )
+            else:
+                is_error(first_arg,FirstArg) 
+                is_error(Second_arg,SecondArg) 
+                is_error(third_arg,ThirdArg) 
+                is_error(fourth_arg, FourthArg) 
+
+            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns) 
+            return DatasetColumns
+        
     def PrepareDataset(
             self,
             FineTuningType : str,
             dataset : Union[ IterableDataset, Dataset ] 
             ):
         if FineTunningType.lower() == 'chatbotgrounding':
-            if not ( self.ContextOrDocOrPassage and self.QuestionOrClaimOrUser and self.AnswerOrLabelOrResponse ):
-                raise RuntimeError( ''' make sure you spacify 
-                     ContextOrDocOrPassage and QuestionOrClaimOrUser and AnswerOrLabelOrResponse
-                     these argument for chatbotgrounding 
-                     ''' )
-            else: 
-                if not self.ContextOrDocOrPassage:
-                    raise RuntimeError( ''' make sure you spacify 
-                         ContextOrDocOrPassage 
-                        argument for chatbotgrounding 
-                        ''' )
-                if not self.QuestionOrClaimOrUser:
-                    raise RuntimeError( ''' make sure you spacify 
-                         QuestionOrClaimOrUser
-                        argument for chatbotgrounding 
-                        ''' )
-                if not self.AnswerOrLabelOrResponse:
-                    raise RuntimeError( ''' make sure you spacify 
-                         AnswerOrLabelOrResponse
-                        argument for chatbotgrounding 
-                        ''' )
-            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns) 
-            'hold on here  and the logic is take only these columns from dataset and then tokenize it and done it ' 
+            
+            return dataset.select_columns(DatasetColumns) 
 
 
  
