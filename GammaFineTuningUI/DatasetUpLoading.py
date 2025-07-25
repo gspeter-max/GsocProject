@@ -2,6 +2,7 @@ import datasets
 from typing import Optional,Union
 from types import NoneType
 import logging
+from huggingface_hub import login
 from datasets import IterableDataset, Dataset,load_dataset
 
 logging.getLogger().setLevel( logging.INFO )
@@ -43,6 +44,7 @@ class UploadDataset( init_information ):
         self.FineTuningType = FineTuningType
 
     def load_it( self,split):
+        login(token = 'huggingface token ')
         dataset = load_dataset(
                         path = self.path,
                         data_files = self.data_files,
@@ -56,9 +58,9 @@ class UploadDataset( init_information ):
                 ThirdArg = '...',
                 FourthArg = '...'
             ):
-        
+
             def is_error( arg, name ):
-                if not name == '...': 
+                if not name == '...':
                     if not arg:
                         raise RuntimeError( f''' make sure you spacify {name}
                             argument for chatbotgrounding
@@ -95,18 +97,20 @@ class UploadDataset( init_information ):
                     )
             DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns)
             return dataset.select_columns(DatasetColumns)
+
     def __call__(self):
-        logging.warning('''make sure your dataset look like this 
-        
-        dataset = {
-            'train' : {'features' : ['feature1','feature2'], 
-                       'num_rows' : '2873'} , 
-            'val' : {'features' : ['feature1','feature2'], 
-                       'num_rows' : '2873'},
-        }
-        if not have using data.rename_columns or another function is exist to rename columns 
-                        
+        logging.warning(f'''make sure your dataset look like this
+
+        dataset =
+            'train' : 'features' : ['feature1','feature2'],
+                       'num_rows' : '2873' ,
+            'val' : 'features' : ['feature1','feature2'],
+                       'num_rows' : '2873',
+
+        if your dataset columns is not match to { self.PossibleColumns }
+        if not have using data.rename_columns or another function is exist to rename columns
+
         ''')
-        data = self.load_it(split = 'public')
-        return self.PrepareDataset(data) 
+        data = self.load_it(split = 'general')
+        return self.PrepareDataset(data)
 
