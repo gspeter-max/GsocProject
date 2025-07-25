@@ -32,7 +32,7 @@ class UploadDataset( init_information ):
         self.path = path 
         self.data_files = data_files
         self.ContextOrDocOrPassage = ContextOrDocOrPassage 
-        self.QuestionOrClaimOrUser = QuestionOrClaimOrUser
+        self.QuestionOrClaimOrUserInput = QuestionOrClaimOrUserInput
         self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
         self.split = split
         self.PossibleColumns = set([
@@ -85,7 +85,11 @@ class UploadDataset( init_information ):
             dataset : Union[ IterableDataset, Dataset ] 
             ):
         if FineTunningType.lower() == 'chatbotgrounding':
-            
+            DatasetColumns = DataHandling(
+                    FirstArg = 'ContextOrDocOrPassage', 
+                    SecondArg = 'QuestionOrClaimOrUserInput',
+                    Third_Arg = 'AnswerOrLabelOrResponse'
+                    ) 
             return dataset.select_columns(DatasetColumns) 
 
 
