@@ -1,6 +1,8 @@
 import datasets 
 from typing import Optional,Union
+from types import NoneType 
 import logging
+from datasets import IterableDataset, Dataset,load_dataset
 
 logging.getLogger().setLevel( logging.INFO )
 
@@ -15,12 +17,12 @@ class UploadDataset( init_information ):
     def __init__(
             self , 
             path : str, 
-            data_files: Union[str, Sequence[str], Mapping[str, Union[str, Sequence[str]]], NoneType] = None,
-            ContextOrDocOrPassage : bool = None, 
-            QuestionOrClaimOrUserInput : bool = None, 
-            AnswerOrLabelOrResponse = bool = None,
+            data_files: Optional[str] = None,
+            ContextOrDocOrPassage : bool = False, 
+            QuestionOrClaimOrUserInput : bool = False, 
+            AnswerOrLabelOrResponse : bool = False,
             FineTuningType : str = 'ChatBotGrounding',
-            split : str = None 
+            split : Union[str,NoneType] = None 
             ):
 
         super().__init__()
@@ -72,46 +74,21 @@ class UploadDataset( init_information ):
                      ''' )
             else:
                 is_error(first_arg,FirstArg) 
-                is_error(Second_arg,SecondArg) 
+                is_error(second_arg,SecondArg) 
                 is_error(third_arg,ThirdArg) 
                 is_error(fourth_arg, FourthArg) 
-
-            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns) 
-            return DatasetColumns
         
     def PrepareDataset(
             self,
             FineTuningType : str,
             dataset : Union[ IterableDataset, Dataset ] 
             ):
-        if FineTunningType.lower() == 'chatbotgrounding':
-            DatasetColumns = DataHandling(
+        if FineTuningType.lower() == 'chatbotgrounding':
+            DataHandling(
                     FirstArg = 'ContextOrDocOrPassage', 
                     SecondArg = 'QuestionOrClaimOrUserInput',
-                    Third_Arg = 'AnswerOrLabelOrResponse'
-                    ) 
+                    ThirdArg = 'AnswerOrLabelOrResponse'
+                    )
+            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns) 
             return dataset.select_columns(DatasetColumns) 
-
-
- 
-
-            
-
-            
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
 
