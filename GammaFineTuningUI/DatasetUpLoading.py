@@ -31,7 +31,7 @@ class UploadDataset( init_information ):
 
         self.path = path 
         self.data_files = data_files
-        self.ContextOrDocOrPassage = ContextOrClaimOrUserInput 
+        self.ContextOrDocOrPassage = ContextOrDocOrPassage 
         self.QuestionOrClaimOrUser = QuestionOrClaimOrUser
         self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
         self.split = split
