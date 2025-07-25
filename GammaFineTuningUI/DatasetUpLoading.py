@@ -8,17 +8,13 @@ from datasets import IterableDataset, Dataset,load_dataset
 logging.getLogger().setLevel( logging.INFO )
 
 class init_information:
-    def __init__(
-            self,
-            huggingface_token = None
-            ):
-        self.huggingface_token = huggingface_token
+    def __init__(self):
+        pass
 
 class UploadDataset( init_information ):
     def __init__(
             self ,
             path : str,
-            data_files: Optional[str] = None,
             ContextOrDocOrPassage : bool = False,
             QuestionOrClaimOrUserInput : bool = False,
             AnswerOrLabelOrResponse : bool = False,
@@ -27,30 +23,49 @@ class UploadDataset( init_information ):
             ):
 
         super().__init__()
-        if path and data_files :
-            logging.info(' both path and data_files is not allow , only data_files is used in this case ')
-        if not path :
-            if not data_files :
-                raise RuntimeError( ' no file path is given ')
+        if not path:
+            raise RuntimeError(' no path is found for loading the dataset ')
 
         self.path = path
-        self.data_files = data_files
         self.ContextOrDocOrPassage = ContextOrDocOrPassage
         self.QuestionOrClaimOrUserInput = QuestionOrClaimOrUserInput
         self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
         self.PossibleColumns = set([
-             'context','doc','user_request', 'context_document', 'full_prompt', 'passage','question','claim','user','answer','label','response'
+             'context','doc','user_request', 'context_document', 'full_prompt',
+             'passage','instruction','question','claim','user','answer','labels','response'
         ])
         self.FineTuningType = FineTuningType
 
-    def load_it( self,split):
+    def load_it( self,split = 'all'):
+
         login(token = 'huggingface token ')
-        dataset = load_dataset(
+        path = self.path.split('.',maxsplit = 1)
+        if len(path) <= 1:
+
+            dataset = load_dataset(
                         path = self.path,
-                        data_files = self.data_files,
                         split = split
                     )
-        return dataset
+            return dataset
+
+        if path[1] == 'csv':
+            dataset = load_dataset(
+                    path = 'csv',
+                    data_files = self.path,
+                    split = split
+                    )
+            print(dataset)
+            return dataset
+
+        if path[1] == 'json':
+            dataset = load_dataset(
+                    path = 'json',
+                    data_files = self.path,
+                    split = split
+                    )
+            return dataset
+
+
     def DataHandling(
                 self,
                 FirstArg = '...' ,
@@ -111,6 +126,17 @@ class UploadDataset( init_information ):
         if not have using data.rename_columns or another function is exist to rename columns
 
         ''')
-        data = self.load_it(split = 'general')
+        data = self.load_it()
         return self.PrepareDataset(data)
+
+    def DataArgumentation( ):
+        ''' we are hold here
+                1. the idea we are do that with two new features
+                first using RAG ( i need to learn )
+                    2. using LLM with separate
+
+        '''
+        pass
+
+
 
