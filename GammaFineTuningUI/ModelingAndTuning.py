@@ -81,15 +81,15 @@ class ModelLoadingAndTuning:
             **PeftConfig
         )
         model = get_peft_model(model, Lora_config)
+
+        trainingArgConfig = HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
-                output_dir = './output',
-                do_train = True, 
-                label_names = ['claim_input_ids']
+                **trainingArgConfig
                 )
 
         trainer = Trainer(
                 model = model,
-                args = TrainingArg,
+                args = TrainingArg
                 train_dataset = tokenized_data 
                 )
         trainer.train()
