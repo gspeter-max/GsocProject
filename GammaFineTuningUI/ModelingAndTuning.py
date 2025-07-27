@@ -1,53 +1,50 @@
 from transformers import (
-        AutoTokenizer, 
-        AutoModelForCausalLM, 
-        BitsAndBytesConfig, 
-        TrainingArguments, 
+        AutoTokenizer,
+        AutoModelForCausalLM,
+        BitsAndBytesConfig,
+        TrainingArguments,
         Trainer
         )
-from GlobalConfig import GetIt
+# from GlobalConfig import GetIt
 globalConfig = GetIt(
         ModelName = 'google/gemma-3-1b-pt',
-        QuantizationType4Bit8Bit = False 
+        QuantizationType4Bit8Bit = False
         )
 
-tokenizerConfig = globalConfig.GetTokenizationConfig()
-peftConfig = globalConfig.GetPeftConfig() 
-TrainingArgument = globalConfig.GetTrainingArguments() 
 HyperparameterConfig = globalConfig(
-        tokenizerConfig, 
-        peftConfig, 
-        TrainingArgument
+        TokenizationConfig=GetIt.GetTokenizationConfig(),
+        PeftConfig=GetIt.GetPeftConfig(),
+        TrainingArguments=GetIt.GetTrainingArguments()
         )
 
 
-from peft import LoraConfig , get_peft_model, TaskType 
-import torch 
+from peft import LoraConfig , get_peft_model, TaskType
+import torch
 
 tokenizer = AutoTokenizer.from_pretrained(HyperparameterConfig['ModelName'])
 tokenizer.pad_token = tokenizer.eos_token
-tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]}) 
+tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
 
 def map_function(example):
 
     text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
-    tokenized = tokenizer( 
-                    text, 
+    tokenized = tokenizer(
+                    text,
                     padding = HyperparameterConfig.get('TokenizationConfig')['padding'] ,
-                    return_tensors = 'pt', 
-                    max_length = HyperparameterConfig.get('TokenizationConfig')['max_length'], 
+                    return_tensors = 'pt',
+                    max_length = HyperparameterConfig.get('TokenizationConfig')['max_length'],
                     truncation = HyperparameterConfig.get('TokenizationConfig')['truncation']
                 )
 
     labels = tokenized.input_ids.clone()
-    SEPTokenId = tokenizer.convert_token_to_ids("[SEP]")
+    SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
     mask_index = torch.argwhere(labels == SEPTokenId )
     rows, columns  = zip(mask_index[0], mask_index[1])
     for r, c  in zip(rows, columns):
         labels[r,:c] = -100
     return {
-            'input_ids' : tokenized.input_ids, 
-            'attention_mask' : tokenized.attention_mask, 
+            'input_ids' : tokenized.input_ids,
+            'attention_mask' : tokenized.attention_mask,
             'labels' : labels
             }
 
@@ -62,9 +59,9 @@ class ModelLoadingAndTuning:
             quantizationConfig = BitsAndBytesConfig(
                         load_in_8bit = True
                     )
-        else: 
+        else:
             quantizationConfig = None
-        
+
         model = AutoModelForCausalLM.from_pretrained(
                 HyperparameterConfig.get('ModelName'),
                 quantization_config = quantizationConfig,
@@ -73,7 +70,7 @@ class ModelLoadingAndTuning:
                 )
 
         model.resize_token_embeddings(len(tokenizer))
-        with no_grad(): 
+        with torch.no_grad():
             model.get_input_embeddings().weight[-1]= torch.mean(model.get_input_embeddings().weight[:-1], dim = 0)
 
         PeftConfig = HyperparameterConfig.get('PeftConfig')
@@ -89,7 +86,7 @@ class ModelLoadingAndTuning:
 
         trainer = Trainer(
                 model = model,
-                args = TrainingArg
-                train_dataset = tokenized_data 
+                args = TrainingArg,
+                train_dataset = tokenized_data
                 )
         trainer.train()
