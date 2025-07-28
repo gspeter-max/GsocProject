@@ -5,14 +5,18 @@ class GetIt:
             self,
             ModelName : str = 'gpt2',
             QuantizationType4Bit8Bit : Union[str,bool] = False,
-            ComputeMetrics : Union[list, str ] = None,
-            PeftType : str = 'LORA'
+            ComputeMetricsList : Union[list, str ] = None,
+            PeftType : str = 'LORA', 
+            SaveFormat : str = None, 
+            ModelDir : str 
             ):
 
         self.ModelName = ModelName
         self.QuantizationType4Bit8Bit = QuantizationType4Bit8Bit
-        self.ComputeMetrics = ComputeMetrics
+        self.ComputeMetrics = ComputeMetricsList
         self.PeftType = PeftType
+        self.SaveFormat = SaveFormat
+        self.ModelDir = ModelDir
 
     @staticmethod
     def GetTokenizationConfig(
@@ -106,8 +110,10 @@ class GetIt:
         ):
         return {
         'ModelName' : self.ModelName,
-        'ComputeMetrics' : self.ComputeMetrics,
+        'ComputeMetricsList' : self.ComputeMetricsList,
         'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
+        'SaveFormat' : self.SaveFormat, 
+        'ModelDir' : self.ModelDir,
         'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
         'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
         'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
