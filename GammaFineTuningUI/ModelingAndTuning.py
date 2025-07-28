@@ -20,7 +20,7 @@ HyperparameterConfig = globalConfig(
         )
 
 
-class ComputeMetrics(EvalPredict):
+def ComputeMetrics(EvalPredict):
 
     logits , label_ids = EvalPredict 
     Prediction = logits.argmax(-1)
@@ -111,6 +111,21 @@ class ModelLoadingAndTuning:
         trainer = Trainer(
                 model = model,
                 args = TrainingArg,
-                train_dataset = tokenized_data
+                train_dataset = tokenized_data,
+                compute_metrics = ComputeMetrics
                 )
         trainer.train()
+        
+        if (HyperparameterConfig.get('ModelDir') is not None) or (HyperparameterConfig.get('SaveFormat') is not None):
+            from GetModel import ConvertModel
+
+            convertmodel = ConvertModel(
+                    Format = HyperparameterConfig.get('SaveFormat'), 
+                    WhereStored = HyperparameterConfig.get('ModelDir')
+                    )
+            convertmodel() 
+
+
+
+
+

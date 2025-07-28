@@ -8,7 +8,7 @@ class GetIt:
             ComputeMetricsList : Union[list, str ] = None,
             PeftType : str = 'LORA', 
             SaveFormat : str = None, 
-            ModelDir : str 
+            ModelDir : str = None
             ):
 
         self.ModelName = ModelName
@@ -17,6 +17,14 @@ class GetIt:
         self.PeftType = PeftType
         self.SaveFormat = SaveFormat
         self.ModelDir = ModelDir
+
+        if self.ModelDir:
+            if self.SaveFormat is None :
+                raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"') 
+        
+        if self.SaveFormat.lower() not in ('tensorflow','torch','gguf',None): 
+            raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"') 
+
 
     @staticmethod
     def GetTokenizationConfig(

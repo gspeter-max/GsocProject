@@ -11,9 +11,12 @@ logger.setLevel(logging.INFO)
 
 class ConvertModel:
     def __init__( self , Format : str = None, \
-            WhereStored : str = './hfConvetedModel/'
+            WhereStored : str = None
                  ):
         self.Format = Format
+        if WhereStored is None:
+            WhereStored = './hfConvertedModel'
+        
         self.WhereStored = WhereStored
 
     def __call__( self, Model,Tokenizer):
