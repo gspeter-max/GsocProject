@@ -16,7 +16,7 @@ class ConvertModel:
         self.Format = Format
         if WhereStored is None:
             WhereStored = './hfConvertedModel'
-        
+
         self.WhereStored = WhereStored
 
     def __call__( self, Model,Tokenizer):
@@ -91,7 +91,7 @@ class ConvertModel:
 
             shutil.rmtree(ptSaveFile)
             shutil.rmtree('./llama.cpp')
-            
+
             logger.info('''
             for loading again
                 do this
@@ -104,7 +104,7 @@ class ConvertModel:
                     pwd = pwd.strip()
 
                     model = AutoModelForCausalLM.from_pretraind(
-                            f"{pwd}/{WhereStored}", 
+                            f"{pwd}/{WhereStored}",
                             gguf_file = f"{pwd}/{WhereStored}/output_gguf.gguf"
                             )
                 '''
