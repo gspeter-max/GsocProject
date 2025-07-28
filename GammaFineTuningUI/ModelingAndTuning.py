@@ -5,6 +5,8 @@ from transformers import (
         TrainingArguments,
         Trainer
         )
+
+import importlib 
 # from GlobalConfig import GetIt
 globalConfig = GetIt(
         ModelName = 'google/gemma-3-1b-pt',
@@ -16,6 +18,28 @@ HyperparameterConfig = globalConfig(
         PeftConfig=GetIt.GetPeftConfig(),
         TrainingArguments=GetIt.GetTrainingArguments()
         )
+
+
+class ComputeMetrics(EvalPredict):
+
+    logits , label_ids = EvalPredict 
+    Prediction = logits.argmax(-1)
+    
+    losses = {} 
+    MetricsModule = importlib.import_module('sklearn.metrics')
+
+    for metrics in HyperparameterConfig.get('ComputeMetricsList'):
+        try:
+            MetricsObject = getattr(MetricsModule,metrics)
+            losses[metrics] = MetricsObject( labels, logits )
+
+        except AttributeError:
+            print(f'Could not find {metrics} in sklearn.metrics ')
+
+        except Expection as e:
+            print(f'Expection from {metrics} side : {e}')
+        
+    return losses 
 
 
 from peft import LoraConfig , get_peft_model, TaskType
