@@ -6,24 +6,24 @@ class GetIt:
             ModelName : str = 'gpt2',
             QuantizationType4Bit8Bit : Union[str,bool] = False,
             ComputeMetricsList : Union[list, str ] = None,
-            PeftType : str = 'LORA', 
-            SaveFormat : str = None, 
+            PeftType : str = 'LORA',
+            SaveFormat : str = None,
             ModelDir : str = None
             ):
 
         self.ModelName = ModelName
         self.QuantizationType4Bit8Bit = QuantizationType4Bit8Bit
-        self.ComputeMetrics = ComputeMetricsList
+        self.ComputeMetricsList = ComputeMetricsList
         self.PeftType = PeftType
         self.SaveFormat = SaveFormat
         self.ModelDir = ModelDir
 
         if self.ModelDir:
             if self.SaveFormat is None :
-                raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"') 
-        
-        if self.SaveFormat.lower() not in ('tensorflow','torch','gguf',None): 
-            raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"') 
+                raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"')
+
+        if self.SaveFormat not in ('tensorflow','torch','gguf',None):
+            raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
 
 
     @staticmethod
@@ -46,7 +46,7 @@ class GetIt:
         lora_alpha: int = 16,
         lora_dropout: float = 0.05,
         bias: str = "none",
-        target_modules: list = ["q_proj", "v_proj"],
+        target_modules: list = ["c_attn", "c_proj"],
         inference_mode: bool = False
     ) -> dict:
         return {
@@ -93,7 +93,7 @@ class GetIt:
             "weight_decay": weight_decay,
             "logging_dir": logging_dir,
             "logging_steps": logging_steps,
-            "eval_strategy": 'no',
+            "eval_strategy": eval_strategy,
             "save_strategy": save_strategy,
             "save_total_limit": save_total_limit,
             "load_best_model_at_end": load_best_model_at_end,
@@ -120,7 +120,7 @@ class GetIt:
         'ModelName' : self.ModelName,
         'ComputeMetricsList' : self.ComputeMetricsList,
         'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
-        'SaveFormat' : self.SaveFormat, 
+        'SaveFormat' : self.SaveFormat,
         'ModelDir' : self.ModelDir,
         'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
         'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
