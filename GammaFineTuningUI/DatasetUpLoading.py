@@ -14,7 +14,7 @@ class init_information:
 class UploadDataset( init_information ):
     def __init__(
             self ,
-            path : str,
+            path : str = 'qualifire/grounding-benchmark',
             ContextOrDocOrPassage : bool = False,
             QuestionOrClaimOrUserInput : bool = False,
             AnswerOrLabelOrResponse : bool = False,
@@ -38,7 +38,7 @@ class UploadDataset( init_information ):
 
     def load_it( self,split = 'all'):
 
-        login(token = 'huggingface token ')
+        login(token = 'hugging face token ')
         path = self.path.split('.',maxsplit = 1)
         if len(path) <= 1:
 
@@ -137,6 +137,9 @@ class UploadDataset( init_information ):
 
         '''
         pass
-
-
-
+#Datasets = UploadDataset(
+#     ContextOrDocOrPassage = True,
+#     QuestionOrClaimOrUserInput = True,
+#     AnswerOrLabelOrResponse = True
+# )
+# dataset = Datasets()
