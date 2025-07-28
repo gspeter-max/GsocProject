@@ -6,41 +6,41 @@ from transformers import (
         Trainer
         )
 
-import importlib 
+import importlib
 # from GlobalConfig import GetIt
 globalConfig = GetIt(
-        ModelName = 'google/gemma-3-1b-pt',
-        QuantizationType4Bit8Bit = False, 
+        ModelName = 'gpt2',
+        QuantizationType4Bit8Bit = False,
         ComputeMetricsList = ['accuracy_scores','f1_score']
         )
 
 HyperparameterConfig = globalConfig(
         TokenizationConfig=GetIt.GetTokenizationConfig(),
         PeftConfig=GetIt.GetPeftConfig(),
-        TrainingArguments=GetIt.GetTrainingArguments()
+        TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
         )
 
 
 def ComputeMetrics(EvalPredict):
 
-    logits , label_ids = EvalPredict 
+    logits , label_ids = EvalPredict
     Prediction = logits.argmax(-1)
-    
-    losses = {} 
+
+    losses = {}
     MetricsModule = importlib.import_module('sklearn.metrics')
 
     for metrics in HyperparameterConfig.get('ComputeMetricsList'):
         try:
             MetricsObject = getattr(MetricsModule,metrics)
-            losses[metrics] = MetricsObject( labels, logits )
+            losses[metrics] = MetricsObject( label_ids, logits )
 
         except AttributeError:
             print(f'Could not find {metrics} in sklearn.metrics ')
 
-        except Expection as e:
+        except Exception as e:
             print(f'Expection from {metrics} side : {e}')
-        
-    return losses 
+
+    return losses
 
 
 from peft import LoraConfig , get_peft_model, TaskType
@@ -115,18 +115,19 @@ class ModelLoadingAndTuning:
                 train_dataset = tokenized_data,
                 compute_metrics = ComputeMetrics
                 )
-        trainer.train()
         
+        %load_ext tensorboard
+        %tensorboard --logdir ./logs
+        trainer.train()
+
         if (HyperparameterConfig.get('ModelDir') is not None) or (HyperparameterConfig.get('SaveFormat') is not None):
-            from GetModel import ConvertModel
+            # from GetModel import ConvertModel
 
             convertmodel = ConvertModel(
-                    Format = HyperparameterConfig.get('SaveFormat'), 
+                    Format = HyperparameterConfig.get('SaveFormat'),
                     WhereStored = HyperparameterConfig.get('ModelDir')
                     )
-            convertmodel() 
+            convertmodel()
 
-
-
-
-
+tuning = ModelLoadingAndTuning()
+tuning.LoadItTrainIt(dataset= tokenized_data)
