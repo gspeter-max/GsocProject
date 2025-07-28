@@ -11,7 +11,7 @@ import importlib
 globalConfig = GetIt(
         ModelName = 'google/gemma-3-1b-pt',
         QuantizationType4Bit8Bit = False, 
-        ComputeMetricsList = ['accuracy_score','f1_score']
+        ComputeMetricsList = ['accuracy_scores','f1_score']
         )
 
 HyperparameterConfig = globalConfig(
