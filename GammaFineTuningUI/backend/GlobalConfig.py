@@ -10,7 +10,7 @@ class GetIt:
             PeftType : str = 'LORA',
             SaveFormat : str = None,
             ModelDir : str = None, 
-            HfToken : str = os.environ.get('hf_token')
+            HfToken : str = None
             ):
 
         self.ModelName = ModelName
