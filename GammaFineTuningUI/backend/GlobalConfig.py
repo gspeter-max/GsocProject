@@ -1,4 +1,5 @@
 from typing import Optional, List, Union
+import os 
 
 class GetIt:
     def __init__(
