@@ -1,7 +1,7 @@
 from typing import Optional, List, Union
 import os 
 
-class GetIt:
+class global_config:
     def __init__(
             self,
             ModelName : str = 'gpt2',

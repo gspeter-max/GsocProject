@@ -10,6 +10,7 @@ from .DatasetUpLoading import UploadDataset
 import os 
 import importlib
 from .GlobalConfig import GetIt
+import subprocess 
 
 hftoken = os.environ.get('HF_TOKEN')
 globalConfig = GetIt(
@@ -25,28 +26,6 @@ HyperparameterConfig = globalConfig(
         TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
         )
         
-def ComputeMetrics(EvalPredict):
-
-    logits , label_ids = EvalPredict
-    Prediction = logits.argmax(-1)
-
-    losses = {}
-    MetricsModule = importlib.import_module('sklearn.metrics')
-
-    for metrics in HyperparameterConfig.get('ComputeMetricsList'):
-        try:
-            MetricsObject = getattr(MetricsModule,metrics)
-            losses[metrics] = MetricsObject( label_ids, logits )
-
-        except AttributeError:
-            print(f'Could not find {metrics} in sklearn.metrics ')
-
-        except Exception as e:
-            print(f'Expection from {metrics} side : {e}')
-
-    return losses
-
-
 from peft import LoraConfig , get_peft_model, TaskType
 import torch
 
@@ -79,6 +58,7 @@ class ModelLoadingAndTuning:
                     'attention_mask' : tokenized.attention_mask,
                     'labels' : labels
                     }
+    
     def LoadItTrainIt( self):
 
         
@@ -88,7 +68,6 @@ class ModelLoadingAndTuning:
                 AnswerOrLabelOrResponse = False
         ) 
         dataset = Dataset(self.HyperparameterConfig.get('HfToken'))
-
 
         tokenized_data = dataset.map(self.map_function, batched = True, remove_columns = dataset.column_names)
         if self.HyperparameterConfig.get('QuantizationType4Bit8Bit'):
@@ -114,6 +93,37 @@ class ModelLoadingAndTuning:
             **PeftConfig
         )
         model = get_peft_model(model, Lora_config)
+        
+        def ComputeMetrics( self,EvalPredict ):
+    
+            probability , label_ids = EvalPredict
+            Prediction = probability.argmax(-1)
+            PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
+            losses = {} 
+            for metrics in self.HyperparameterConfig.get('TrainingArguments'):
+                if metrics == 'accuracy_scroe':
+                    from sklearn.metrics import accuracy_score
+                    
+                    losses[metrics]  = accuracy_score( label_ids, probability )
+
+                if metrics == 'f1_score':
+                    from sklearn.metrics import f1_score 
+
+                    losses[metrics] = f1_score( label_ids, probability ) 
+
+                if metrics == 'perplexity':
+                    process = subprocess.run( 'pip install torcheval' , shell = True, capture_output = True, text= True )
+                    print( process.stdout )
+                    
+                    from torcheval.metrics.text import Perplexity 
+                    m = Perplexity() 
+                    m.update( probability, label_ids ) 
+                    losses[metrics] = m.compute() 
+                
+                else: 
+                    raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
+                    
+                return losses 
 
         trainingArgConfig = self.HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
@@ -124,7 +134,7 @@ class ModelLoadingAndTuning:
                 model = model,
                 args = TrainingArg,
                 train_dataset = tokenized_data,
-                compute_metrics = ComputeMetrics
+                compute_metrics = self.ComputeMetrics
                 )
         
         # %load_ext tensorboard
