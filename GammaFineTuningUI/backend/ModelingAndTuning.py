@@ -6,29 +6,11 @@ from transformers import (
         Trainer
         )
 
+from backend.DataUpLoading import UploadDataset
 import os 
 import importlib
 from backend.GlobalConfig import GetIt
-globalConfig = GetIt(
-        ModelName = 'gpt2',
-        QuantizationType4Bit8Bit = False,
-        ComputeMetricsList = ['accuracy_scores','f1_score'],
-        HfToken = os.environ.get('HF_TOKEN')
-        )
 
-HyperparameterConfig = globalConfig(
-        TokenizationConfig=GetIt.GetTokenizationConfig(),
-        PeftConfig=GetIt.GetPeftConfig(),
-        TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
-        )
-
-from backend.DataUpLoading import UploadDataset
-Dataset = UploadDataset(
-        ContextOrDocOrPassage  = True, 
-        QuestionOrClaimOrUserInput = True, 
-        AnswerOrLabelOrResponse = False
-) 
-dataset = Dataset(HyperparameterConfig.get('HfToken'))
 def ComputeMetrics(EvalPredict):
 
     logits , label_ids = EvalPredict
@@ -61,21 +43,20 @@ tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
 def map_function(example):
 
     text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
-    tokenized = tokenizer(
-                    text,
-                    padding = HyperparameterConfig.get('TokenizationConfig')['padding'] ,
-                    return_tensors = 'pt',
-                    max_length = HyperparameterConfig.get('TokenizationConfig')['max_length'],
-                    truncation = HyperparameterConfig.get('TokenizationConfig')['truncation']
-                )
-
-    labels = tokenized.input_ids.clone()
-    SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
-    mask_index = torch.argwhere(labels == SEPTokenId )
-    rows, columns  = zip(mask_index[0], mask_index[1])
-    for r, c  in zip(rows, columns):
-        labels[r,:c] = -100
-    return {
+        tokenized = tokenizer(
+                text,
+                padding = HyperparameterConfig.get('TokenizationConfig')['padding'] ,
+                return_tensors = 'pt',
+                max_length = HyperparameterConfig.get('TokenizationConfig')['max_length'],
+                truncation = HyperparameterConfig.get('TokenizationConfig')['truncation']
+        )
+        labels = tokenized.input_ids.clone()
+        SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
+        mask_index = torch.argwhere(labels == SEPTokenId )
+        rows, columns  = zip(mask_index[0], mask_index[1])
+        for r, c  in zip(rows, columns):
+                labels[r,:c] = -100
+        return {
             'input_ids' : tokenized.input_ids,
             'attention_mask' : tokenized.attention_mask,
             'labels' : labels
@@ -87,6 +68,27 @@ class ModelLoadingAndTuning:
         pass
 
     def LoadItTrainIt( self, dataset ):
+
+        hftoken = os.environ.get('HF_TOKEN')
+        globalConfig = GetIt(
+                ModelName = 'gpt2',
+                QuantizationType4Bit8Bit = False,
+                ComputeMetricsList = ['accuracy_scores','f1_score'],
+                HfToken = hftoken
+                )
+        
+        HyperparameterConfig = globalConfig(
+                TokenizationConfig=GetIt.GetTokenizationConfig(),
+                PeftConfig=GetIt.GetPeftConfig(),
+                TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
+                )
+        
+        Dataset = UploadDataset(
+                ContextOrDocOrPassage  = True, 
+                QuestionOrClaimOrUserInput = True, 
+                AnswerOrLabelOrResponse = False
+        ) 
+        dataset = Dataset(HyperparameterConfig.get('HfToken'))
 
         if HyperparameterConfig.get('QuantizationType4Bit8Bit'):
             quantizationConfig = BitsAndBytesConfig(
