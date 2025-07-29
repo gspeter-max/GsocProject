@@ -12,21 +12,20 @@ class GetIt:
             ModelDir : str = None, 
             HfToken : str = None
             ):
+                self.ModelName = ModelName
+                self.QuantizationType4Bit8Bit = QuantizationType4Bit8Bit
+                self.ComputeMetricsList = ComputeMetricsList
+                self.PeftType = PeftType
+                self.HfToken = HfToken
+                self.SaveFormat = SaveFormat
+                self.ModelDir = ModelDir
 
-        self.ModelName = ModelName
-        self.QuantizationType4Bit8Bit = QuantizationType4Bit8Bit
-        self.ComputeMetricsList = ComputeMetricsList
-        self.PeftType = PeftType
-        self.HfToken = HfToken
-        self.SaveFormat = SaveFormat
-        self.ModelDir = ModelDir
-
-        if self.ModelDir:
-            if self.SaveFormat is None :
-                raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"')
-
-        if self.SaveFormat not in ('tensorflow','torch','gguf',None):
-            raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
+                if self.ModelDir:
+                    if self.SaveFormat is None :
+                        raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"')
+        
+                if self.SaveFormat not in ('tensorflow','torch','gguf',None):
+                    raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
 
 
     @staticmethod
@@ -36,11 +35,11 @@ class GetIt:
             TokenizerTruncation : bool = True
 
         ) -> dict:
-        return {
-            'padding' : TokenizerPadding,
-            'max_length' : TokenizerMaxLength,
-            'truncation': TokenizerTruncation
-                }
+            return {
+                'padding' : TokenizerPadding,
+                'max_length' : TokenizerMaxLength,
+                'truncation': TokenizerTruncation
+                    }
 
     @staticmethod
     def GetPeftConfig(
@@ -119,14 +118,14 @@ class GetIt:
         PeftConfig = None,
         TrainingArguments = None
         ):
-        return {
-        'ModelName' : self.ModelName,
-        'ComputeMetricsList' : self.ComputeMetricsList,
-        'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
-        'SaveFormat' : self.SaveFormat,
-        'HfToken' : self.HfToken,
-        'ModelDir' : self.ModelDir,
-        'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
-        'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
-        'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
-            }
+            return {
+            'ModelName' : self.ModelName,
+            'ComputeMetricsList' : self.ComputeMetricsList,
+            'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
+            'SaveFormat' : self.SaveFormat,
+            'HfToken' : self.HfToken,
+            'ModelDir' : self.ModelDir,
+            'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
+            'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
+            'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
+                }
