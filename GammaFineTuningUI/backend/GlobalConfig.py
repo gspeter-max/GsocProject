@@ -8,7 +8,8 @@ class GetIt:
             ComputeMetricsList : Union[list, str ] = None,
             PeftType : str = 'LORA',
             SaveFormat : str = None,
-            ModelDir : str = None
+            ModelDir : str = None, 
+            HfToken : str = os.environ.get('hf_token')
             ):
 
         self.ModelName = ModelName
@@ -121,6 +122,7 @@ class GetIt:
         'ComputeMetricsList' : self.ComputeMetricsList,
         'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
         'SaveFormat' : self.SaveFormat,
+        'HfToken' : self.HfToken,
         'ModelDir' : self.ModelDir,
         'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
         'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
