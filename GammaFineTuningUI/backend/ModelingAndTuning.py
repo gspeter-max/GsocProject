@@ -6,10 +6,10 @@ from transformers import (
         Trainer
         )
 
-from DatasetUpLoading import UploadDataset
+from .DatasetUpLoading import UploadDataset
 import os 
 import importlib
-from GlobalConfig import GetIt
+from .GlobalConfig import GetIt
 
 def ComputeMetrics(EvalPredict):
 
