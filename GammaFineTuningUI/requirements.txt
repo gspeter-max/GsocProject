@@ -1,22 +1,23 @@
-tensorflow==2.15.0
-keras==2.15.0
-numpy==1.26.4
-tensorflow-probability==0.23.0
-onnx==1.18.0
-onnx-tf==1.10.0
-streamlit
+# requirements.txt
 
+# Main Framework
+streamlit
+plotly
+
+# Hugging Face Ecosystem (PyTorch-based)
 transformers
 datasets
 huggingface_hub
 peft
 accelerate
 bitsandbytes
-
 torch
+
+# Core ML & Data Handling
 scikit-learn
 pandas
 
+# Visualization & Logging
 matplotlib
 seaborn
 tensorboard
