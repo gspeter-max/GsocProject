@@ -7,7 +7,7 @@ from transformers import (
         )
 
 import importlib
-# from GlobalConfig import GetIt
+from GlobalConfig import GetIt
 globalConfig = GetIt(
         ModelName = 'gpt2',
         QuantizationType4Bit8Bit = False,
@@ -121,7 +121,7 @@ class ModelLoadingAndTuning:
         trainer.train()
 
         if (HyperparameterConfig.get('ModelDir') is not None) or (HyperparameterConfig.get('SaveFormat') is not None):
-            # from GetModel import ConvertModel
+            from GetModel import ConvertModel
 
             convertmodel = ConvertModel(
                     Format = HyperparameterConfig.get('SaveFormat'),
