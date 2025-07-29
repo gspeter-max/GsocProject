@@ -18,8 +18,7 @@ class UploadDataset( init_information ):
             ContextOrDocOrPassage : bool = False,
             QuestionOrClaimOrUserInput : bool = False,
             AnswerOrLabelOrResponse : bool = False,
-            FineTuningType : str = 'ChatBotGrounding',
-            split : Union[str,NoneType] = None
+            FineTuningType : str = 'ChatBotGrounding'
             ):
 
         super().__init__()
@@ -36,9 +35,9 @@ class UploadDataset( init_information ):
         ])
         self.FineTuningType = FineTuningType
 
-    def load_it( self,split = 'all'):
+    def load_it( self,split = 'all', hf_token : str):
 
-        login(token = 'hugging face token ')
+        login(token = hf_token)
         path = self.path.split('.',maxsplit = 1)
         if len(path) <= 1:
 
@@ -113,7 +112,7 @@ class UploadDataset( init_information ):
             DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns)
             return dataset.select_columns(DatasetColumns)
 
-    def __call__(self):
+    def __call__(self, hf_token):
         logging.warning(f'''make sure your dataset look like this
 
         dataset =
@@ -126,7 +125,7 @@ class UploadDataset( init_information ):
         if not have using data.rename_columns or another function is exist to rename columns
 
         ''')
-        data = self.load_it()
+        data = self.load_it(hf_token)
         return self.PrepareDataset(data)
 
     def DataArgumentation( ):
