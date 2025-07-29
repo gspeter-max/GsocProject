@@ -58,9 +58,30 @@ class ModelLoadingAndTuning:
     def __init__(self,HyperparameterConfig):
         self.HyperparameterConfig = HyperparameterConfig
 
+    def map_function(self,example):
+
+            text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
+            tokenized = tokenizer(
+                    text,
+                    padding = self.HyperparameterConfig.get('TokenizationConfig')['padding'] ,
+                    return_tensors = 'pt',
+                    max_length = self.HyperparameterConfig.get('TokenizationConfig')['max_length'],
+                    truncation = self.HyperparameterConfig.get('TokenizationConfig')['truncation']
+            )
+            labels = tokenized.input_ids.clone()
+            SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
+            mask_index = torch.argwhere(labels == SEPTokenId )
+            rows, columns  = zip(mask_index[0], mask_index[1])
+            for r, c  in zip(rows, columns):
+                    labels[r,:c] = -100
+            return {
+                    'input_ids' : tokenized.input_ids,
+                    'attention_mask' : tokenized.attention_mask,
+                    'labels' : labels
+                    }
     def LoadItTrainIt( self):
 
-
+        
         Dataset = UploadDataset(
                 ContextOrDocOrPassage  = True, 
                 QuestionOrClaimOrUserInput = True, 
@@ -68,27 +89,6 @@ class ModelLoadingAndTuning:
         ) 
         dataset = Dataset(self.HyperparameterConfig.get('HfToken'))
 
-        def map_function(self,example):
-
-                text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
-                tokenized = tokenizer(
-                        text,
-                        padding = self.HyperparameterConfig.get('TokenizationConfig')['padding'] ,
-                        return_tensors = 'pt',
-                        max_length = self.HyperparameterConfig.get('TokenizationConfig')['max_length'],
-                        truncation = self.HyperparameterConfig.get('TokenizationConfig')['truncation']
-                )
-                labels = tokenized.input_ids.clone()
-                SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
-                mask_index = torch.argwhere(labels == SEPTokenId )
-                rows, columns  = zip(mask_index[0], mask_index[1])
-                for r, c  in zip(rows, columns):
-                        labels[r,:c] = -100
-                return {
-                        'input_ids' : tokenized.input_ids,
-                        'attention_mask' : tokenized.attention_mask,
-                        'labels' : labels
-                        }
 
         tokenized_data = dataset.map(self.map_function, batched = True, remove_columns = dataset.column_names)
         if self.HyperparameterConfig.get('QuantizationType4Bit8Bit'):

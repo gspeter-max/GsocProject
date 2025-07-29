@@ -1,347 +1,259 @@
 import streamlit as st
+from streamlit_option_menu import option_menu
 import pandas as pd
 import torch
 import logging
 import os
-import shutil
-import subprocess
-from threading import Thread
 import time
-import inspect
+from threading import Thread
 from queue import Queue
+import re
 
-# Import your backend modules
+# Backend Imports using relative paths from within the package
 from backend.GlobalConfig import GetIt
+from backend.ModelingAndTuning import ModelLoadingAndTuning
 from backend.DatasetUpLoading import UploadDataset
-from backend.ModelingAndTuning import ModelLoadingAndTuning, map_function, tokenizer
-from backend.GetModel import ConvertModel
 
-# For live plotting
-from tensorboard.backend.event_processing import event_accumulator
+# For live plotting from log files
 import plotly.graph_objects as go
+from tensorboard.backend.event_processing import event_accumulator
 
 # =====================================================================================
-# 1. App Configuration and Styling
+# 1. APP CONFIGURATION AND STYLING
 # =====================================================================================
-
 st.set_page_config(
-    page_title="Aurora AI Fine-Tuner ✨",
+    page_title="Aurora Tuner ✨ | AI Model Fine-Tuning",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS for a beautiful, modern look ---
+# --- AESTHETICS ---
 st.markdown("""
 <style>
-    /* Import a Google Font */
-    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
 
-    /* Main app styling */
-    html, body, [class*="st-"] {
-        font-family: 'Roboto Mono', monospace;
+    html, body, [class*="st-"], .st-emotion-cache-10trblm {
+        font-family: 'Fira Code', monospace;
     }
-
     .stApp {
-        background-color: #000000;
-        background-image: linear-gradient(180deg, #0a0a1a 0%, #000000 100%);
-        color: #E0E0E0;
+        background-color: #010001;
+        color: #E6E6E6;
     }
-
-    /* Sidebar styling */
-    .css-1d391kg {
-        background-color: rgba(10, 10, 26, 0.8);
-        border-right: 1px solid #7B00B1;
+    .st-emotion-cache-16txtl3 {
+        padding: 2rem 3rem 1rem;
     }
-
-    /* Title and Header styling */
     h1, h2, h3 {
-        color: #9D4EDD; /* A vibrant purple */
-        text-shadow: 0 0 5px #9D4EDD;
+        color: #B388FF;
+        text-shadow: 0 0 3px #B388FF, 0 0 5px #D1C4E9;
     }
-
-    /* Button styling */
     .stButton>button {
-        border-radius: 8px;
-        border: 1px solid #7B00B1;
-        background-image: linear-gradient(to right, #7B00B1, #9D4EDD);
+        border-radius: 5px;
+        border: 1px solid #7E57C2;
+        background: linear-gradient(45deg, #4527A0, #673AB7);
         color: white;
         transition: all 0.3s ease-in-out;
-        box-shadow: 0 0 10px #7B00B1;
+        box-shadow: 0 4px 15px 0 rgba(126, 87, 194, 0.4);
     }
     .stButton>button:hover {
-        box-shadow: 0 0 20px #9D4EDD;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px 0 rgba(126, 87, 194, 0.6);
     }
-    .stButton>button:disabled {
-        background: #555;
-        color: #888;
-        border-color: #555;
-        box-shadow: none;
-    }
-
-    /* Expander styling */
     .st-expander {
-        border-radius: 10px;
-        border: 1px solid #7B00B1;
-        background-color: rgba(20, 20, 40, 0.5);
+        border-color: #512DA8;
     }
-    .st-expander header {
-        color: #C77DFF;
-    }
-
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: transparent;
-        border-radius: 4px 4px 0px 0px;
-        border-bottom: 2px solid #555;
-        color: #E0E0E0;
-    }
-    .stTabs [aria-selected="true"] {
-        border-bottom: 2px solid #9D4EDD;
-        color: #9D4EDD;
-        font-weight: bold;
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
 # =====================================================================================
-# 2. Session State Initialization
+# 2. SESSION STATE & HELPERS
 # =====================================================================================
+if 'config' not in st.session_state:
+    st.session_state.config = GetIt() # Initialize with defaults
+if 'training_status' not in st.session_state:
+    st.session_state.training_status = "Not Started"
+if 'training_thread' not in st.session_state:
+    st.session_state.training_thread = None
+if 'log_queue' not in st.session_state:
+    st.session_state.log_queue = Queue()
 
-def init_session_state():
-    if 'config' not in st.session_state:
-        # Initialize config from GlobalConfig defaults
-        default_global = GetIt()
-        default_training = GetIt.GetTrainingArguments()
-        default_peft = GetIt.GetPeftConfig()
-        default_tokenization = GetIt.GetTokenizationConfig()
-        
-        st.session_state.config = {
-            "global": {k: v for k, v in default_global.__dict__.items()},
-            "training": default_training,
-            "peft": default_peft,
-            "tokenization": default_tokenization
-        }
-    
-    if 'training_status' not in st.session_state:
-        st.session_state.training_status = "Not Started" # Can be "Not Started", "Running", "Completed", "Error"
-    
-    if 'training_thread' not in st.session_state:
-        st.session_state.training_thread = None
-    
-    if 'log_queue' not in st.session_state:
-        st.session_state.log_queue = Queue()
-
-init_session_state()
+def get_default_params(func):
+    """Helper to get default values from function signatures."""
+    return {param.name: param.default for param in inspect.signature(func).parameters.values()}
 
 # =====================================================================================
-# 3. Backend Logic Integration
+# 3. TRAINING WORKER & LOGGING
 # =====================================================================================
-
-# Custom handler to redirect logging to a Streamlit queue
 class QueueLogHandler(logging.Handler):
     def __init__(self, queue):
         super().__init__()
         self.queue = queue
-
     def emit(self, record):
         self.queue.put(self.format(record))
 
-def training_worker(config):
+def training_worker(config_obj):
     try:
         st.session_state.training_status = "Running"
+        # Setup logging
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         handler = QueueLogHandler(st.session_state.log_queue)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-        st.session_state.log_queue.put("--- Initializing Training ---")
+        if not logger.handlers:
+            logger.addHandler(handler)
         
-        # This part needs to be adapted based on how your backend scripts
-        # consume the configuration. We assume they can be passed a config dict.
+        st.session_state.log_queue.put("--- [INITIALIZING] ---")
+        st.session_state.log_queue.put(f"Configuration received. Model: {config_obj.ModelName}")
+
+        # Instantiate and run your backend class
+        tuner = ModelLoadingAndTuning(config_obj)
+        tuner.LoadItTrainIt()
         
-        # This is a placeholder for your actual training logic call
-        # You would need to refactor ModelingAndTuning.py to accept the config dict
-        # For now, we'll simulate it.
-        st.session_state.log_queue.put(f"CONFIG: {config}")
-        
-        # --- Simulating your backend logic ---
-        st.session_state.log_queue.put("Loading dataset...")
-        time.sleep(2) # Simulate work
-        st.session_state.log_queue.put("Tokenizing data...")
-        time.sleep(2) # Simulate work
-        st.session_state.log_queue.put("Loading model and applying PEFT...")
-        time.sleep(3) # Simulate work
-        st.session_state.log_queue.put("Starting Trainer...")
-
-        # Create a dummy log file for plotting
-        log_dir = config['training']['logging_dir']
-        os.makedirs(log_dir, exist_ok=True)
-        event_file_path = os.path.join(log_dir, "events.out.tfevents.dummy")
-        with open(event_file_path, "w") as f:
-            f.write("This is a dummy file for demonstration.")
-
-        for epoch in range(int(config['training']['num_train_epochs'])):
-            st.session_state.log_queue.put(f"--- Epoch {epoch + 1} ---")
-            for step in range(10): # Simulate steps
-                loss = 1.0 / (step + 1)
-                st.session_state.log_queue.put(f"Step {step+1}/10 - loss: {loss:.4f}")
-                time.sleep(0.5)
-
-        st.session_state.log_queue.put("--- Training Completed Successfully ---")
+        st.session_state.log_queue.put("--- [SUCCESS] Training has completed successfully! ---")
         st.session_state.training_status = "Completed"
 
     except Exception as e:
-        st.session_state.log_queue.put(f"--- ERROR: {str(e)} ---")
+        st.session_state.log_queue.put(f"--- [CRITICAL ERROR] --- \n{str(e)}")
         st.session_state.training_status = "Error"
+    finally:
+        if logger.handlers:
+            logger.removeHandler(handler)
 
 # =====================================================================================
-# 4. UI Rendering Functions
+# 4. UI PAGES
 # =====================================================================================
 
-def render_home_page():
-    st.title("Welcome to the Aurora AI Fine-Tuner ✨")
-    st.markdown("""
-    This application provides a powerful and intuitive interface to fine-tune Hugging Face models using PEFT/LoRA.
+def page_configurator():
+    st.title("🛠️ Model & Training Configurator")
+    st.markdown("Define every hyperparameter for your training run. Changes are saved automatically.")
     
-    **Navigate through the sections using the sidebar:**
-    - **🏠 Home:** You are here!
-    - **🛠️ Configuration:** Set up your dataset, model, and all training hyperparameters.
-    - **🚀 Train & Monitor:** Launch the training process and monitor its progress in real-time.
-    - **📊 Results & Analysis:** View and analyze the results after training is complete.
+    config = st.session_state.config
     
-    Ready to build? Let's get started!
-    """, unsafe_allow_html=True)
-    st.image("https://storage.googleapis.com/gweb-uniblog-publish-prod/original_images/Hugging-Face-on-Google-Cloud.png", caption="Harness the power of Hugging Face with an elegant UI.")
+    with st.expander("📂 **Core Configuration**", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            config.ModelName = st.text_input("Model Name", value=config.ModelName, help="Base model from Hugging Face.")
+            config.HfToken = st.text_input("Hugging Face Token", type="password", help="Required for private models. Set as a secret in Streamlit for production.")
+        with col2:
+            config.SaveFormat = st.selectbox("Save Format", [None, 'torch', 'tensorflow', 'gguf'], index=0 if config.SaveFormat is None else [None, 'torch', 'tensorflow', 'gguf'].index(config.SaveFormat))
+            config.ModelDir = st.text_input("Save Directory", value=config.ModelDir)
 
-
-def render_config_page():
-    st.header("🛠️ Configuration")
-    
-    with st.expander("📂 Dataset & Model", expanded=True):
-        st.session_state.config['global']['ModelName'] = st.text_input(
-            "Model Name", st.session_state.config['global']['ModelName'], help="Base model from Hugging Face.")
-        st.session_state.config['global']['QuantizationType4Bit8Bit'] = st.checkbox(
-            "Enable 8-bit Quantization", st.session_state.config['global']['QuantizationType4Bit8Bit'])
-        
-        # Ideally, your UploadDataset class would be used here. For simplicity:
-        st.text_input("Dataset Path", "qualifire/grounding-benchmark")
-        st.text_input("Dataset Split", "train")
-
-    with st.expander("⚙️ Training Arguments", expanded=False):
-        # Dynamically create UI elements from the config dict
-        for key, value in st.session_state.config['training'].items():
+    with st.expander("⚙️ **Training Arguments**"):
+        training_args = get_default_params(GetIt.GetTrainingArguments)
+        user_training_args = {}
+        for key, value in training_args.items():
             if isinstance(value, bool):
-                st.session_state.config['training'][key] = st.checkbox(key, value)
+                user_training_args[key] = st.checkbox(key, value)
             elif isinstance(value, float):
-                st.session_state.config['training'][key] = st.number_input(key, value=value, format="%.0e" if "rate" in key else "%.2f")
+                user_training_args[key] = st.number_input(key, value=value, format="%.0e" if "rate" in key else "%.2f")
             elif isinstance(value, int):
-                st.session_state.config['training'][key] = st.number_input(key, value=value, step=1)
-            elif isinstance(value, str) or value is None:
-                st.session_state.config['training'][key] = st.text_input(key, value)
-
-    with st.expander("🔧 PEFT (LoRA) Arguments", expanded=False):
-        for key, value in st.session_state.config['peft'].items():
+                user_training_args[key] = st.number_input(key, value=value, step=10)
+            else:
+                user_training_args[key] = st.text_input(key, value=str(value))
+        config.TrainingArguments = GetIt.GetTrainingArguments(**user_training_args)
+    
+    with st.expander("🔧 **PEFT (LoRA) Arguments**"):
+        peft_args = get_default_params(GetIt.GetPeftConfig)
+        user_peft_args = {}
+        for key, value in peft_args.items():
             if isinstance(value, bool):
-                st.session_state.config['peft'][key] = st.checkbox(key, value)
+                user_peft_args[key] = st.checkbox(key, value, key=f"peft_{key}")
             elif isinstance(value, float):
-                st.session_state.config['peft'][key] = st.slider(key, 0.0, 1.0, value)
+                user_peft_args[key] = st.slider(key, 0.0, 1.0, value, key=f"peft_{key}")
             elif isinstance(value, int):
-                st.session_state.config['peft'][key] = st.slider(key, 1, 128, value)
-            elif isinstance(value, str):
-                st.session_state.config['peft'][key] = st.text_input(key, value)
-            elif isinstance(value, list):
-                 st.session_state.config['peft'][key] = st.multiselect(key, options=value, default=value)
-                 
-    st.success("Configuration updated. Proceed to the 'Train & Monitor' page.")
+                user_peft_args[key] = st.slider(key, 1, 128, value, key=f"peft_{key}")
+            else:
+                 user_peft_args[key] = st.text_input(key, value, key=f"peft_{key}")
+        config.PeftConfig = GetIt.GetPeftConfig(**user_peft_args)
 
+    st.session_state.config = config
+    st.success("Configuration is set. Proceed to the **Train & Monitor** page to launch.")
 
-def render_train_page():
-    st.header("🚀 Train & Monitor")
-
-    col1, col2 = st.columns([1, 1])
+def page_trainer():
+    st.title("🚀 Train & Monitor")
+    
+    col1, col2 = st.columns([1, 2])
+    
     with col1:
         st.subheader("Control Panel")
-        start_button = st.button("Start Training", disabled=(st.session_state.training_status == "Running"))
-        
-        if start_button:
-            thread = Thread(target=training_worker, args=(st.session_state.config,))
+        start_disabled = st.session_state.training_status == "Running"
+        if st.button("🚀 Launch Training!", disabled=start_disabled, use_container_width=True):
+            # Pass a copy of the finalized config object
+            final_config = st.session_state.config
+            # Call the __call__ method to get the dictionary representation for the backend
+            hyperparameter_dict = final_config(
+                TokenizationConfig=final_config.GetTokenizationConfig(), # Assuming defaults are okay for now
+                PeftConfig=final_config.PeftConfig,
+                TrainingArguments=final_config.TrainingArguments
+            )
+
+            # Important: The backend needs to be refactored to accept this dictionary
+            # For now, we launch with the object itself
+            thread = Thread(target=training_worker, args=(final_config,))
             st.session_state.training_thread = thread
             thread.start()
-        
-        st.write(f"**Status:** {st.session_state.training_status}")
-        
-    with col2:
-        st.subheader("Live Metrics")
-        # In a real scenario, you'd parse real logs here. We'll simulate.
+            st.rerun()
+
+        st.metric("Training Status", st.session_state.training_status)
+
         if st.session_state.training_status == "Running":
-            # Create placeholders for live plots
-            loss_chart_placeholder = st.empty()
-            
-            # This loop simulates live updating
-            loss_data = []
-            for i in range(50):
-                loss_data.append(1 / (i + 1) + torch.randn(1).item() * 0.1)
-                fig = go.Figure(data=go.Scatter(y=loss_data, mode='lines', line=dict(color='#9D4EDD')))
-                fig.update_layout(title="Live Training Loss", xaxis_title="Step", yaxis_title="Loss", template="plotly_dark")
-                loss_chart_placeholder.plotly_chart(fig, use_container_width=True)
-                time.sleep(0.2)
+            with st.spinner("Training in progress..."):
+                time.sleep(1) # Small delay to allow logs to populate
+            st.rerun()
 
-    st.subheader("Live Console Logs")
-    log_placeholder = st.empty()
-    log_container = log_placeholder.container()
-    
-    current_logs = []
-    def update_logs():
+    with col2:
+        st.subheader("Live Console")
+        log_placeholder = st.empty()
+        log_records = []
         while not st.session_state.log_queue.empty():
-            current_logs.append(st.session_state.log_queue.get_nowait())
-        log_container.code("\n".join(current_logs), language='log')
+            log_records.append(st.session_state.log_queue.get())
+        
+        if log_records:
+            st.session_state.full_log = st.session_state.get('full_log', '') + '\n'.join(log_records)
+        
+        log_placeholder.code(st.session_state.get('full_log', 'Logs will appear here...'), language='log', height=400)
 
-    # Keep updating logs while the thread is alive
-    if st.session_state.training_status == "Running":
-        update_logs()
+    st.divider()
+    st.subheader("📈 Live Training Graphs")
+    # This section needs to be connected to the log directory
+    st.info("Live graphs will appear here once training starts and log files are generated.")
+    # Placeholder for live graph
+    graph_placeholder = st.empty()
+    # In a real scenario, a separate thread would monitor the log dir and update this plot
     
-def render_results_page():
-    st.header("📊 Results & Analysis")
+def page_results():
+    st.title("📊 Results & Analysis")
     if st.session_state.training_status == "Completed":
-        st.success("Training finished successfully!")
         st.balloons()
-        
-        # Add download buttons for model/logs
-        st.subheader("Download Artifacts")
-        # In a real app, you would zip the model directory before offering a download
-        st.button("Download Trained Model (Not Implemented)")
-        st.button("Download Logs (Not Implemented)")
-        
-    elif st.session_state.training_status == "Error":
-        st.error("Training failed. Check the logs on the 'Train & Monitor' page for details.")
+        st.success("Training run completed successfully!")
+        st.info(f"You can find your saved model in the directory: `{st.session_state.config.ModelDir}` if specified.")
+        # Logic to display final metrics would go here
     else:
-        st.info("Training has not yet completed. Please start a training run and wait for it to finish.")
+        st.warning("No completed training run found. Please complete a run on the **Train & Monitor** page.")
 
 # =====================================================================================
-# 5. Main App Router
+# 5. MAIN APP ROUTER
 # =====================================================================================
 
-PAGES = {
-    "🏠 Home": render_home_page,
-    "🛠️ Configuration": render_config_page,
-    "🚀 Train & Monitor": render_train_page,
-    "📊 Results & Analysis": render_results_page,
-}
+with st.sidebar:
+    selected = option_menu(
+        menu_title="Aurora Tuner",
+        options=["Configurator", "Train & Monitor", "Results"],
+        icons=["gear-wide-connected", "rocket-takeoff", "bar-chart-line"],
+        menu_icon="robot",
+        default_index=0,
+        styles={
+            "container": {"background-color": "#010001"},
+            "icon": {"color": "#D1C4E9", "font-size": "20px"},
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#4527A0"},
+            "nav-link-selected": {"background-color": "#512DA8"},
+        }
+    )
 
-st.sidebar.title("Navigation")
-selection = st.sidebar.radio("Go to", list(PAGES.keys()))
-
-page = PAGES[selection]
-page()
-
-st.sidebar.info(f"Current Status: {st.session_state.training_status}")
+if selected == "Configurator":
+    page_configurator()
+elif selected == "Train & Monitor":
+    page_trainer()
+elif selected == "Results":
+    page_results()
