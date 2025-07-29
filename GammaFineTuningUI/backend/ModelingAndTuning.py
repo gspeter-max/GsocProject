@@ -116,8 +116,8 @@ class ModelLoadingAndTuning:
                 compute_metrics = ComputeMetrics
                 )
         
-        %load_ext tensorboard
-        %tensorboard --logdir ./logs
+        # %load_ext tensorboard
+        # %tensorboard --logdir ./logs
         trainer.train()
 
         if (HyperparameterConfig.get('ModelDir') is not None) or (HyperparameterConfig.get('SaveFormat') is not None):
