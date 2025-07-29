@@ -35,7 +35,7 @@ class UploadDataset( init_information ):
         ])
         self.FineTuningType = FineTuningType
 
-    def load_it( self,split = 'all', hf_token : str):
+    def load_it( self,split = 'all', hf_token : str = None):
 
         login(token = hf_token)
         path = self.path.split('.',maxsplit = 1)
