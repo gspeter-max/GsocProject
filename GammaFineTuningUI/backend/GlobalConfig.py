@@ -8,8 +8,10 @@ class global_config:
             QuantizationType4Bit8Bit : Union[str,bool] = False,
             ComputeMetricsList : Union[list, str ] = None,
             PeftType : str = 'LORA',
-            SaveFormat : str = None,
-            ModelDir : str = None, 
+            SaveFormat : str = None, 
+            ModelDir : str = None,  
+            EvalSaveFormat : str = None 
+
             HfToken : str = None
             ):
                 self.ModelName = ModelName
@@ -17,6 +19,7 @@ class global_config:
                 self.ComputeMetricsList = ComputeMetricsList
                 self.PeftType = PeftType
                 self.HfToken = HfToken
+                self.EvalSaveFormat = EvalSaveFormat
                 self.SaveFormat = SaveFormat
                 self.ModelDir = ModelDir
 
@@ -125,6 +128,7 @@ class global_config:
             'SaveFormat' : self.SaveFormat,
             'HfToken' : self.HfToken,
             'ModelDir' : self.ModelDir,
+            'EvalSaveFormat' : self.EvalSaveForamt,
             'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
             'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
             'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()

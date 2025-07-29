@@ -2,15 +2,17 @@ from transformers import (
         AutoTokenizer,
         AutoModelForCausalLM,
         BitsAndBytesConfig,
-        TrainingArguments,
         Trainer
         )
 
+
+from transformers.trainer_callback import TrainerCallback , TrainingArguments 
 from .DatasetUpLoading import UploadDataset
 import os 
 import importlib
 from .GlobalConfig import GetIt
 import subprocess 
+import pandas as pd 
 
 hftoken = os.environ.get('HF_TOKEN')
 globalConfig = GetIt(
@@ -61,7 +63,6 @@ class ModelLoadingAndTuning:
     
     def LoadItTrainIt( self):
 
-        
         Dataset = UploadDataset(
                 ContextOrDocOrPassage  = True, 
                 QuestionOrClaimOrUserInput = True, 
@@ -129,7 +130,17 @@ class ModelLoadingAndTuning:
         TrainingArg = TrainingArguments(
                 **trainingArgConfig
                 )
+        
+        class AllEvaluationResultCallback( TrainerCallback ):
+            def __init__(  self, Trainer ):
+                super().__init__()
+                self.trainer = Trainer 
+                self.AllEvaluations = [] 
 
+            def __call__( self, args : TrainingArguments, Score, Control , **Kwargs ):
+                LossResult = self.trainer.evaluate( self.trainer.eval_datasets ) 
+                self.AllEvaluations.append( LossResult )
+        
         trainer = Trainer(
                 model = model,
                 args = TrainingArg,
@@ -137,8 +148,17 @@ class ModelLoadingAndTuning:
                 compute_metrics = self.ComputeMetrics
                 )
         
+        if self.Hyperparameter.get('EvalSaveFormat') not None : 
+            if self.Hyperparameter.get('EvalSaveFormat').lower() not in ('csv','json'):
+                raise AttributeError(f'''{self.Hyperparameter.get("EvalSaveFormat")} is supported  ,
+                                     acceptable format ("csv","json") '''
+                            ) 
+            AllEvalResult = AllEvaluationResultCallback( trainer )
+            trainer.add_callback( AllEvalResult )
+
         # %load_ext tensorboard
         # %tensorboard --logdir ./logs
+        
         trainer.train()
 
         if (self.HyperparameterConfig.get('ModelDir') is not None) or (self.HyperparameterConfig.get('SaveFormat') is not None):
@@ -149,6 +169,19 @@ class ModelLoadingAndTuning:
                     WhereStored = self.HyperparameterConfig.get('ModelDir')
                     )
             convertmodel()
+
+        pwd = subprocess.run( 'pwd', shell = True , text = True, capture_output = True ).stdout
+        Format = self.Hyperparameter.get('EvalSaveFormat') 
+        if Format.lower() == 'csv':
+            df = pd.DataFrame( AllEvalResult.AllEvaluations )
+            df.to_csv('./EvalResult.csv')
+            logger.info(f'evaluation result "{pwd}/EvalResult.csv" Stored in {Format.lower()}') 
+
+        if self.Hyperparameter.get('EvalSaveFormat').lower() == 'json':
+            df = pd.DataFrame( AllEvalResult.AllEvaluations )
+            df.to_json('./EvalResult.json')
+            logger.info(f'evaluation result  "{pwd}/EvalResult.json" stored in {Format.lower()}') 
+
 
 # tuning = ModelLoadingAndTuning()
 # tuning.LoadItTrainIt()
