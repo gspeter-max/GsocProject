@@ -6,7 +6,7 @@ from transformers import (
         Trainer
         )
 
-from DataUpLoading import UploadDataset
+from DatasetUpLoading import UploadDataset
 import os 
 import importlib
 from GlobalConfig import GetIt
