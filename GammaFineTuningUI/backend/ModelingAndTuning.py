@@ -20,7 +20,13 @@ HyperparameterConfig = globalConfig(
         TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
         )
 
-
+from backend.DataUpLoading import UploadDataset
+Dataset = UploadDataset(
+        ContextOrDocOrPassage  = True, 
+        QuestionOrClaimOrUserInput = True, 
+        AnswerOrLabelOrResponse = False
+) 
+dataset = Dataset(HyperparameterConfig.get('HfToken'))
 def ComputeMetrics(EvalPredict):
 
     logits , label_ids = EvalPredict
