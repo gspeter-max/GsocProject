@@ -11,6 +11,20 @@ import os
 import importlib
 from .GlobalConfig import GetIt
 
+hftoken = os.environ.get('HF_TOKEN')
+globalConfig = GetIt(
+        ModelName = 'gpt2',
+        QuantizationType4Bit8Bit = False,
+        ComputeMetricsList = ['accuracy_scores','f1_score'],
+        HfToken = hftoken
+        )
+
+HyperparameterConfig = globalConfig(
+        TokenizationConfig=GetIt.GetTokenizationConfig(),
+        PeftConfig=GetIt.GetPeftConfig(),
+        TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
+        )
+        
 def ComputeMetrics(EvalPredict):
 
     logits , label_ids = EvalPredict
@@ -64,33 +78,20 @@ def map_function(example):
 
 tokenized_data = dataset.map(map_function, batched = True, remove_columns = dataset.column_names)
 class ModelLoadingAndTuning:
-    def __init__(self):
-        pass
+    def __init__(self,HyperparameterConfig):
+        self.HyperparameterConfig = HyperparameterConfig
 
-    def LoadItTrainIt( self, dataset ):
+    def LoadItTrainIt( self):
 
-        hftoken = os.environ.get('HF_TOKEN')
-        globalConfig = GetIt(
-                ModelName = 'gpt2',
-                QuantizationType4Bit8Bit = False,
-                ComputeMetricsList = ['accuracy_scores','f1_score'],
-                HfToken = hftoken
-                )
-        
-        HyperparameterConfig = globalConfig(
-                TokenizationConfig=GetIt.GetTokenizationConfig(),
-                PeftConfig=GetIt.GetPeftConfig(),
-                TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
-                )
-        
+
         Dataset = UploadDataset(
                 ContextOrDocOrPassage  = True, 
                 QuestionOrClaimOrUserInput = True, 
                 AnswerOrLabelOrResponse = False
         ) 
-        dataset = Dataset(HyperparameterConfig.get('HfToken'))
+        dataset = Dataset(self.HyperparameterConfig.get('HfToken'))
 
-        if HyperparameterConfig.get('QuantizationType4Bit8Bit'):
+        if self.HyperparameterConfig.get('QuantizationType4Bit8Bit'):
             quantizationConfig = BitsAndBytesConfig(
                         load_in_8bit = True
                     )
@@ -98,7 +99,7 @@ class ModelLoadingAndTuning:
             quantizationConfig = None
 
         model = AutoModelForCausalLM.from_pretrained(
-                HyperparameterConfig.get('ModelName'),
+                self.HyperparameterConfig.get('ModelName'),
                 quantization_config = quantizationConfig,
                 device_map = 'auto',
                 trust_remote_code = True
@@ -108,13 +109,13 @@ class ModelLoadingAndTuning:
         with torch.no_grad():
             model.get_input_embeddings().weight[-1]= torch.mean(model.get_input_embeddings().weight[:-1], dim = 0)
 
-        PeftConfig = HyperparameterConfig.get('PeftConfig')
+        PeftConfig = self.HyperparameterConfig.get('PeftConfig')
         Lora_config = LoraConfig(
             **PeftConfig
         )
         model = get_peft_model(model, Lora_config)
 
-        trainingArgConfig = HyperparameterConfig.get('TrainingArguments')
+        trainingArgConfig = self.HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
                 **trainingArgConfig
                 )
@@ -130,14 +131,14 @@ class ModelLoadingAndTuning:
         # %tensorboard --logdir ./logs
         trainer.train()
 
-        if (HyperparameterConfig.get('ModelDir') is not None) or (HyperparameterConfig.get('SaveFormat') is not None):
+        if (self.HyperparameterConfig.get('ModelDir') is not None) or (self.HyperparameterConfig.get('SaveFormat') is not None):
             from backend.GetModel import ConvertModel
 
             convertmodel = ConvertModel(
-                    Format = HyperparameterConfig.get('SaveFormat'),
-                    WhereStored = HyperparameterConfig.get('ModelDir')
+                    Format = self.HyperparameterConfig.get('SaveFormat'),
+                    WhereStored = self.HyperparameterConfig.get('ModelDir')
                     )
             convertmodel()
 
-tuning = ModelLoadingAndTuning()
-tuning.LoadItTrainIt(dataset= tokenized_data)
+# tuning = ModelLoadingAndTuning()
+# tuning.LoadItTrainIt()
