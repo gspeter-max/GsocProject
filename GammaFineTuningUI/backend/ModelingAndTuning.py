@@ -6,12 +6,14 @@ from transformers import (
         Trainer
         )
 
+import os 
 import importlib
 from backend.GlobalConfig import GetIt
 globalConfig = GetIt(
         ModelName = 'gpt2',
         QuantizationType4Bit8Bit = False,
-        ComputeMetricsList = ['accuracy_scores','f1_score']
+        ComputeMetricsList = ['accuracy_scores','f1_score'],
+        HfToken = os.environ.get('hf_token')
         )
 
 HyperparameterConfig = globalConfig(
