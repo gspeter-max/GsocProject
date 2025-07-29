@@ -17,6 +17,7 @@ class GetIt:
         self.QuantizationType4Bit8Bit = QuantizationType4Bit8Bit
         self.ComputeMetricsList = ComputeMetricsList
         self.PeftType = PeftType
+        self.HfToken = HfToken
         self.SaveFormat = SaveFormat
         self.ModelDir = ModelDir
 
