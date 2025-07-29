@@ -13,7 +13,7 @@ globalConfig = GetIt(
         ModelName = 'gpt2',
         QuantizationType4Bit8Bit = False,
         ComputeMetricsList = ['accuracy_scores','f1_score'],
-        HfToken = os.environ.get('hf_token')
+        HfToken = os.environ.get('HF_TOKEN')
         )
 
 HyperparameterConfig = globalConfig(
