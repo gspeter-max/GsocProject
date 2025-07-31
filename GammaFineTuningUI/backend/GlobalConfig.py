@@ -10,8 +10,8 @@ class global_config:
             PeftType : str = 'LORA',
             SaveFormat : str = None, 
             ModelDir : str = None,  
-            EvalSaveFormat : str = None 
-            FSDP : bool = False
+            EvalSaveFormat : str = None, 
+            FSDP : bool = False,
             HfToken : str = None
             ):
                 self.ModelName = ModelName

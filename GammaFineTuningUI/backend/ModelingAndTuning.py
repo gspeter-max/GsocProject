@@ -150,8 +150,8 @@ class ModelLoadingAndTuning:
                 compute_metrics = self.ComputeMetrics
                 )
         
-        if self.Hyperparameter.get('EvalSaveFormat') not None : 
-            if self.Hyperparameter.get('EvalSaveFormat').lower() not in ('csv','json'):
+        if self.HyperparameterConfig.get('EvalSaveFormat') not None : 
+            if self.HyperparameterConfig.get('EvalSaveFormat').lower() not in ('csv','json'):
                 raise AttributeError(f'''{self.Hyperparameter.get("EvalSaveFormat")} is supported  ,
                                      acceptable format ("csv","json") '''
                             ) 
@@ -170,16 +170,16 @@ class ModelLoadingAndTuning:
                     Format = self.HyperparameterConfig.get('SaveFormat'),
                     WhereStored = self.HyperparameterConfig.get('ModelDir')
                     )
-            convertmodel()
+            convertmodel( model, tokenizer )
 
         pwd = subprocess.run( 'pwd', shell = True , text = True, capture_output = True ).stdout
-        Format = self.Hyperparameter.get('EvalSaveFormat') 
+        Format = self.HyperparameterConfig.get('EvalSaveFormat') 
         if Format.lower() == 'csv':
             df = pd.DataFrame( AllEvalResult.AllEvaluations )
             df.to_csv('./EvalResult.csv')
             logger.info(f'evaluation result "{pwd}/EvalResult.csv" Stored in {Format.lower()}') 
 
-        if self.Hyperparameter.get('EvalSaveFormat').lower() == 'json':
+        if self.HyperparameterConfig.get('EvalSaveFormat').lower() == 'json':
             df = pd.DataFrame( AllEvalResult.AllEvaluations )
             df.to_json('./EvalResult.json')
             logger.info(f'evaluation result  "{pwd}/EvalResult.json" stored in {Format.lower()}') 
