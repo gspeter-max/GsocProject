@@ -73,7 +73,6 @@ class ConvertModel:
             print(ProcessOutput.stderr)
 
             shutil.rmtree(ptSaveFile)
-            shutil.rmtree('./llama.cpp')
 
             logger.info('''
             for loading again
@@ -83,8 +82,10 @@ class ConvertModel:
                     from transformers import AutoModelForCasualLM
                     import subprocess
 
-                    pwd = subprocesss.run('pwd', capture_output = True , text = True ).stdout
-                    pwd = pwd.strip()
+                    #pwd = subprocesss.run('pwd', capture_output = True , text = True ).stdout
+                    #pwd = pwd.strip()
+                    or 
+                    pwd = os.getcwd()
 
                     model = AutoModelForCausalLM.from_pretraind(
                             f"{pwd}/{WhereStored}",

@@ -28,7 +28,7 @@ HyperparameterConfig = globalConfig(
         TokenizationConfig=global_config.GetTokenizationConfig(),
         PeftConfig=global_config.GetPeftConfig(),
         TrainingArguments=global_config.GetTrainingArguments(
-            report_to = 'tensorboard'
+            report_to = 'tensorboard',
             fsdp_config = global_config.GetFSDP(), 
             FSDP = globalConfig.FSDP
             )
@@ -40,73 +40,72 @@ import logging
 
 logger = logging.getLogger().setLevel(logging.INFO) 
 
-tokenizer = AutoTokenizer.from_pretrained(HyperparameterConfig ['ModelName'])
-tokenizer.pad_token = tokenizer.eos_token
-tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
-
 class AllEvaluationResultCallback( TrainerCallback ):
     def __init__(  self, Trainer ):
         super().__init__()
         self.trainer = Trainer 
-        self.AllEvaluations = [] 
+        self.AllEvaluations = []    
 
-    def __call__( self, args : TrainingArguments, Score, Control , **Kwargs ):
-        LossResult = self.trainer.evaluate( self.trainer.eval_datasets ) 
-        self.AllEvaluations.append( LossResult )
+
+    def on_evaluate( self, args : TrainingArguments, Score, Control ,metrics, **Kwargs ):
+        self.AllEvaluations.append( metrics.copy())
 
 
 class ModelLoadingAndTuning:
     def __init__(self,HyperparameterConfig):
         self.HyperparameterConfig = HyperparameterConfig
+        self.tokenizer = AutoTokenizer.from_pretrained( self.HyperparameterConfig['ModelName'])
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
 
     def map_function(self,example):
 
-            text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
-            tokenized = tokenizer(
-                    text,
-                    padding = self.HyperparameterConfig.get('TokenizationConfig')['padding'] ,
-                    return_tensors = 'pt',
-                    max_length = self.HyperparameterConfig.get('TokenizationConfig')['max_length'],
-                    truncation = self.HyperparameterConfig.get('TokenizationConfig')['truncation']
-            )
-            labels = tokenized.input_ids.clone()
-            SEPTokenId = tokenizer.convert_tokens_to_ids("[SEP]")
-            mask_index = torch.argwhere(labels == SEPTokenId )
-            rows, columns  = zip(mask_index[0], mask_index[1])
-            for r, c  in zip(rows, columns):
-                    labels[r,:c] = -100
-            return {
-                    'input_ids' : tokenized.input_ids,
-                    'attention_mask' : tokenized.attention_mask,
-                    'labels' : labels
-                    }
+        text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
+        tokenized = self.tokenizer(
+                text,
+                padding = self.HyperparameterConfig.get('TokenizationConfig')['padding'] ,
+                return_tensors = 'pt',
+                max_length = self.HyperparameterConfig.get('TokenizationConfig')['max_length'],
+                truncation = self.HyperparameterConfig.get('TokenizationConfig')['truncation']
+        )
+        labels = tokenized.input_ids.clone()
+        SEPTokenId = self.tokenizer.convert_tokens_to_ids("[SEP]")
+        mask_index = torch.argwhere(labels == SEPTokenId )
+        rows, columns  = zip(mask_index[0], mask_index[1])
+        for r, c  in zip(rows, columns):
+                labels[r,:c] = -100
+        return {
+                'input_ids' : tokenized.input_ids,
+                'attention_mask' : tokenized.attention_mask,
+                'labels' : labels
+                }
     def ComputeMetrics( self,EvalPredict ):
     
-            probability , label_ids = EvalPredict
-            Prediction = probability.argmax(-1)
-            PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
-            losses = {} 
-            for metrics in self.HyperparameterConfig.get('ComputeMetircsList'):
-                if metrics == 'accuracy_scroe':
-                    from sklearn.metrics import accuracy_score
-                    
-                    losses[metrics]  = accuracy_score( label_ids, probability )
-
-                if metrics == 'f1_score':
-                    from sklearn.metrics import f1_score 
-
-                    losses[metrics] = f1_score( label_ids, probability ) 
-
-                if metrics == 'perplexity':
-                    from torcheval.metrics.text import Perplexity 
-                    m = Perplexity() 
-                    m.update( probability, label_ids ) 
-                    losses[metrics] = m.compute() 
+        probability , label_ids = EvalPredict
+        Prediction = probability.argmax(-1)
+        PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
+        losses = {} 
+        for metrics in self.HyperparameterConfig.get('ComputeMetricsList'):
+            if metrics == 'accuracy_scores':
+                from sklearn.metrics import accuracy_score
                 
-                else: 
-                    raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
-                    
-                return losses 
+                losses[metrics]  = accuracy_score( label_ids, probability )
+
+            if metrics == 'f1_score':
+                from sklearn.metrics import f1_score 
+
+                losses[metrics] = f1_score( label_ids, probability ) 
+
+            if metrics == 'perplexity':
+                from torcheval.metrics.text import Perplexity 
+                m = Perplexity() 
+                m.update( probability, label_ids ) 
+                losses[metrics] = m.compute() 
+            
+            else: 
+                raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
+                
+        return losses
 
     def LoadItTrainIt( self):
 
@@ -176,7 +175,7 @@ class ModelLoadingAndTuning:
                     )
             convertmodel( model, tokenizer )
 
-        pwd = subprocess.run( 'pwd', shell = True , text = True, capture_output = True ).stdout
+        pwd = os.getcwd()
         Format = self.HyperparameterConfig.get('EvalSaveFormat') 
         if Format.lower() == 'csv':
             df = pd.DataFrame( AllEvalResult.AllEvaluations )
