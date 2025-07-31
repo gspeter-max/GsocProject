@@ -19,14 +19,19 @@ globalConfig = GetIt(
         ModelName = 'gpt2',
         QuantizationType4Bit8Bit = False,
         ComputeMetricsList = ['accuracy_scores','f1_score'],
-        HfToken = hftoken
+        HfToken = hftoken, 
+        FSDP = True
         )
 
 HyperparameterConfig = globalConfig(
         TokenizationConfig=GetIt.GetTokenizationConfig(),
         PeftConfig=GetIt.GetPeftConfig(),
-        TrainingArguments=GetIt.GetTrainingArguments(report_to = 'tensorboard')
+        TrainingArguments=GetIt.GetTrainingArguments(
+            report_to = 'tensorboard', 
+            fsdp_config = GetIt.GetFSDP(
+
         )
+    )
         
 from peft import LoraConfig , get_peft_model, TaskType
 import torch
