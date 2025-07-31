@@ -11,7 +11,7 @@ class global_config:
             SaveFormat : str = None, 
             ModelDir : str = None,  
             EvalSaveFormat : str = None 
-
+            FSDP : bool = False
             HfToken : str = None
             ):
                 self.ModelName = ModelName
@@ -22,6 +22,7 @@ class global_config:
                 self.EvalSaveFormat = EvalSaveFormat
                 self.SaveFormat = SaveFormat
                 self.ModelDir = ModelDir
+                self.FSDP = FSDP 
 
                 if self.ModelDir:
                     if self.SaveFormat is None :
@@ -30,6 +31,31 @@ class global_config:
                 if self.SaveFormat not in ('tensorflow','torch','gguf',None):
                     raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
 
+    @staticmethod
+    def GetFSDP(
+            fsdp_auto_wrap_policy: str = 'TRANSFORMER_BASED_WRAP',
+            fsdp_backward_prefetch_policy: str =  'BACKWARD_PRE',
+            fsdp_forward_prefetch: bool = False,
+            fsdp_cpu_ram_efficient_loading:bool = True, 
+            fsdp_offload_params: bool =  False,
+            fsdp_sharding_strategy: str = 'FULL_SHARD',
+            fsdp_state_dict_type:str =  'SHARDED_STATE_DICT',
+            fsdp_sync_module_states: bool =  True,
+            fsdp_transformer_layer_cls_to_wrap:str = 'GPT2Layers',
+            fsdp_use_orig_params: bool = True
+            ):
+        return {
+                'fsdp_auto_wrap_policy' : sdp_auto_wrap_policy,
+                'fsdp_backward_prefetch_policy': fsdp_backward_prefetch_policy,
+                'fsdp_forward_prefetch': fsdp_forward_prefetch,
+                'fsdp_cpu_ram_efficient_loading': fsdp_cpu_ram_efficient_loading,
+                'fsdp_offload_params': fsdp_offload_params,
+                'fsdp_sharding_strategy': fsdp_sharding_strategy,
+                'fsdp_state_dict_type': fsdp_state_dict_type,
+                'fsdp_sync_module_states': fsdp_sync_module_states,
+                'fsdp_transformer_layer_cls_to_wrap': fsdp_transformer_layer_cls_to_wrap,
+                'fsdp_use_orig_params': fsdp_use_orig_params 
+        }
 
     @staticmethod
     def GetTokenizationConfig(
@@ -119,17 +145,26 @@ class global_config:
         self,
         TokenizationConfig = None,
         PeftConfig = None,
-        TrainingArguments = None
+        TrainingArguments = None, 
+        FSDP = None
         ):
-            return {
-            'ModelName' : self.ModelName,
-            'ComputeMetricsList' : self.ComputeMetricsList,
-            'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
-            'SaveFormat' : self.SaveFormat,
-            'HfToken' : self.HfToken,
-            'ModelDir' : self.ModelDir,
-            'EvalSaveFormat' : self.EvalSaveForamt,
-            'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None else GetIt.GetTokenizationConfig(),
-            'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
-            'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
-                }
+            return_dict =  {
+                'ModelName' : self.ModelName,
+                'ComputeMetricsList' : self.ComputeMetricsList,
+                'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
+                'SaveFormat' : self.SaveFormat,
+                'HfToken' : self.HfToken,
+                'ModelDir' : self.ModelDir,
+                'EvalSaveFormat' : self.EvalSaveForamt,
+                'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None \
+                    else GetIt.GetTokenizationConfig(),
+                'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
+                'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
+            }
+            
+            if self.FSDP == True:
+                return_dict['FSDP'] = GetIt.GetFSDP
+                if FSDP is not None:
+                    return_dict['FSDP'] = FSDP
+            
+            return return_dict 
