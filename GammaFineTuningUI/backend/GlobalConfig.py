@@ -155,16 +155,17 @@ class global_config:
                 'SaveFormat' : self.SaveFormat,
                 'HfToken' : self.HfToken,
                 'ModelDir' : self.ModelDir,
-                'EvalSaveFormat' : self.EvalSaveForamt,
+                'EvalSaveFormat' : self.EvalSaveFormat,
                 'TokenizationConfig' : TokenizationConfig if TokenizationConfig is not None \
-                    else GetIt.GetTokenizationConfig(),
-                'PeftConfig' : PeftConfig if PeftConfig is not None else GetIt.GetPeftConfig(),
-                'TrainingArguments' : TrainingArguments if TrainingArguments is not None else GetIt.GetTrainingArguments()
+                    else global_config.GetTokenizationConfig(),
+                'PeftConfig' : PeftConfig if PeftConfig is not None else global_config.GetPeftConfig(),
+                'TrainingArguments' : TrainingArguments if TrainingArguments is not None else global_config.GetTrainingArguments()
             }
             
             if self.FSDP == True:
-                return_dict['FSDP'] = GetIt.GetFSDP
+                return_dict['FSDP'] = global_config.GetFSDP
                 if FSDP is not None:
                     return_dict['FSDP'] = FSDP
             
             return return_dict 
+

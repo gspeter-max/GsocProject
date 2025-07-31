@@ -67,10 +67,10 @@ class UploadDataset( init_information ):
 
     def DataHandling(
                 self,
-                FirstArg = '...' ,
-                SecondArg = '...',
-                ThirdArg = '...',
-                FourthArg = '...'
+                FirstArgName = '...' ,
+                SecondArgName = '...',
+                ThirdArgName = '...',
+                FourthArgName = '...'
             ):
 
             def is_error( arg, name ):
@@ -80,24 +80,25 @@ class UploadDataset( init_information ):
                             argument for chatbotgrounding
                             ''' )
 
-            first_arg = getattr(self,FirstArg,False)
-            second_arg = getattr(self,SecondArg,False)
-            third_arg = getattr(self,ThirdArg,False)
-            fourth_arg = getattr(self,FourthArg,False)
+            first_arg = getattr(self, FirstArgName, False)
+            second_arg = getattr(self, SecondArgName, False)
+            third_arg = getattr(self, ThirdArgName, False)
+            fourth_arg = getattr(self, FourthArgName, False)
 
             true_list = [first_arg,second_arg,third_arg,fourth_arg]
 
-            if true_list.count(False) > true_list.count(True):
+            if true_list.count(False) > true_list.count(True): # (x > 1) is Flase means one argument is not available \
+            # we are just comparing to true the logic you know 
 
                 raise RuntimeError( f''' make sure you spacify
-                     {FirstArg} , {SecondArg} , {ThirdArg} , {FourthArg}
+                     {FirstArgName} , {SecondArgName} , {ThirdArgName} , {FourthArgName}
                      these argument for chatbotgrounding
                      ''' )
             else:
-                is_error(first_arg,FirstArg)
-                is_error(second_arg,SecondArg)
-                is_error(third_arg,ThirdArg)
-                is_error(fourth_arg, FourthArg)
+                is_error(first_arg, FirstArgName)
+                is_error(second_arg, SecondArgName)
+                is_error(third_arg, ThirdArgName)
+                is_error(fourth_arg, FourthArgName)
 
     def PrepareDataset(
             self,
@@ -105,9 +106,9 @@ class UploadDataset( init_information ):
             ):
         if self.FineTuningType.lower() == 'chatbotgrounding':
             self.DataHandling(
-                    FirstArg = 'ContextOrDocOrPassage',
-                    SecondArg = 'QuestionOrClaimOrUserInput',
-                    ThirdArg = 'AnswerOrLabelOrResponse'
+                    FirstArgName = 'ContextOrDocOrPassage',
+                    SecondArgName = 'QuestionOrClaimOrUserInput',
+                    ThirdArgName = 'AnswerOrLabelOrResponse'
                     )
             DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns)
             return dataset.select_columns(DatasetColumns)
@@ -120,15 +121,16 @@ class UploadDataset( init_information ):
                        'num_rows' : '2873' ,
             'val' : 'features' : ['feature1','feature2'],
                        'num_rows' : '2873',
+        
+        If your dataset's columns do not match the required names, 
+        use a function like data.rename_column() to align them.
 
-        if your dataset columns is not match to { self.PossibleColumns }
-        if not have using data.rename_columns or another function is exist to rename columns
 
         ''')
         data = self.load_it(hf_token)
         return self.PrepareDataset(data)
 
-    def DataArgumentation( ):
+    def DataArgumentation(self):
         ''' we are hold here
                 1. the idea we are do that with two new features
                 first using RAG ( i need to learn )
@@ -142,3 +144,4 @@ class UploadDataset( init_information ):
 #     AnswerOrLabelOrResponse = True
 # )
 # dataset = Datasets()
+

@@ -6,16 +6,17 @@ from transformers import (
         )
 
 
-from transformers.trainer_callback import TrainerCallback , TrainingArguments 
+from transformers.trainer_callback import TrainerCallback 
+from transformers.training_args import TrainingArguments
 from .DatasetUpLoading import UploadDataset
 import os 
 import importlib
-from .GlobalConfig import GetIt
+from .GlobalConfig import global_config
 import subprocess 
 import pandas as pd 
 
 hftoken = os.environ.get('HF_TOKEN')
-globalConfig = GetIt(
+globalConfig = global_config(
         ModelName = 'gpt2',
         QuantizationType4Bit8Bit = False,
         ComputeMetricsList = ['accuracy_scores','f1_score'],
@@ -24,21 +25,35 @@ globalConfig = GetIt(
         )
 
 HyperparameterConfig = globalConfig(
-        TokenizationConfig=GetIt.GetTokenizationConfig(),
-        PeftConfig=GetIt.GetPeftConfig(),
-        TrainingArguments=GetIt.GetTrainingArguments(
-            report_to = 'tensorboard',
-            fsdp_config = GetIt.GetFSDP(), 
+        TokenizationConfig=global_config.GetTokenizationConfig(),
+        PeftConfig=global_config.GetPeftConfig(),
+        TrainingArguments=global_config.GetTrainingArguments(
+            report_to = 'tensorboard'
+            fsdp_config = global_config.GetFSDP(), 
             FSDP = globalConfig.FSDP
             )
         ) 
 
 from peft import LoraConfig , get_peft_model, TaskType
 import torch
+import logging 
 
-tokenizer = AutoTokenizer.from_pretrained(HyperparameterConfig['ModelName'])
+logger = logging.getLogger().setLevel(logging.INFO) 
+
+tokenizer = AutoTokenizer.from_pretrained(HyperparameterConfig ['ModelName'])
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
+
+class AllEvaluationResultCallback( TrainerCallback ):
+    def __init__(  self, Trainer ):
+        super().__init__()
+        self.trainer = Trainer 
+        self.AllEvaluations = [] 
+
+    def __call__( self, args : TrainingArguments, Score, Control , **Kwargs ):
+        LossResult = self.trainer.evaluate( self.trainer.eval_datasets ) 
+        self.AllEvaluations.append( LossResult )
+
 
 class ModelLoadingAndTuning:
     def __init__(self,HyperparameterConfig):
@@ -65,7 +80,34 @@ class ModelLoadingAndTuning:
                     'attention_mask' : tokenized.attention_mask,
                     'labels' : labels
                     }
+    def ComputeMetrics( self,EvalPredict ):
     
+            probability , label_ids = EvalPredict
+            Prediction = probability.argmax(-1)
+            PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
+            losses = {} 
+            for metrics in self.HyperparameterConfig.get('ComputeMetircsList'):
+                if metrics == 'accuracy_scroe':
+                    from sklearn.metrics import accuracy_score
+                    
+                    losses[metrics]  = accuracy_score( label_ids, probability )
+
+                if metrics == 'f1_score':
+                    from sklearn.metrics import f1_score 
+
+                    losses[metrics] = f1_score( label_ids, probability ) 
+
+                if metrics == 'perplexity':
+                    from torcheval.metrics.text import Perplexity 
+                    m = Perplexity() 
+                    m.update( probability, label_ids ) 
+                    losses[metrics] = m.compute() 
+                
+                else: 
+                    raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
+                    
+                return losses 
+
     def LoadItTrainIt( self):
 
         Dataset = UploadDataset(
@@ -99,49 +141,11 @@ class ModelLoadingAndTuning:
             **PeftConfig
         )
         model = get_peft_model(model, Lora_config)
-        
-        def ComputeMetrics( self,EvalPredict ):
-    
-            probability , label_ids = EvalPredict
-            Prediction = probability.argmax(-1)
-            PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
-            losses = {} 
-            for metrics in self.HyperparameterConfig.get('ComputeMetircsList'):
-                if metrics == 'accuracy_scroe':
-                    from sklearn.metrics import accuracy_score
-                    
-                    losses[metrics]  = accuracy_score( label_ids, probability )
-
-                if metrics == 'f1_score':
-                    from sklearn.metrics import f1_score 
-
-                    losses[metrics] = f1_score( label_ids, probability ) 
-
-                if metrics == 'perplexity':
-                    from torcheval.metrics.text import Perplexity 
-                    m = Perplexity() 
-                    m.update( probability, label_ids ) 
-                    losses[metrics] = m.compute() 
-                
-                else: 
-                    raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
-                    
-                return losses 
 
         trainingArgConfig = self.HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
                 **trainingArgConfig
                 )
-        
-        class AllEvaluationResultCallback( TrainerCallback ):
-            def __init__(  self, Trainer ):
-                super().__init__()
-                self.trainer = Trainer 
-                self.AllEvaluations = [] 
-
-            def __call__( self, args : TrainingArguments, Score, Control , **Kwargs ):
-                LossResult = self.trainer.evaluate( self.trainer.eval_datasets ) 
-                self.AllEvaluations.append( LossResult )
         
         trainer = Trainer(
                 model = model,
@@ -152,7 +156,7 @@ class ModelLoadingAndTuning:
         
         if self.HyperparameterConfig.get('EvalSaveFormat') not None : 
             if self.HyperparameterConfig.get('EvalSaveFormat').lower() not in ('csv','json'):
-                raise AttributeError(f'''{self.Hyperparameter.get("EvalSaveFormat")} is supported  ,
+                raise AttributeError(f'''{self.HyperparameterConfig.get("EvalSaveFormat")} is supported  ,
                                      acceptable format ("csv","json") '''
                             ) 
             AllEvalResult = AllEvaluationResultCallback( trainer )
@@ -164,7 +168,7 @@ class ModelLoadingAndTuning:
         trainer.train()
 
         if (self.HyperparameterConfig.get('ModelDir') is not None) or (self.HyperparameterConfig.get('SaveFormat') is not None):
-            from backend.GetModel import ConvertModel
+            from .GetModel import ConvertModel
 
             convertmodel = ConvertModel(
                     Format = self.HyperparameterConfig.get('SaveFormat'),
@@ -187,3 +191,4 @@ class ModelLoadingAndTuning:
 
 # tuning = ModelLoadingAndTuning()
 # tuning.LoadItTrainIt()
+
