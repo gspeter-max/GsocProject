@@ -45,7 +45,7 @@ class global_config:
             fsdp_use_orig_params: bool = True
             ):
         return {
-                'fsdp_auto_wrap_policy' : sdp_auto_wrap_policy,
+                'fsdp_auto_wrap_policy' : fsdp_auto_wrap_policy,
                 'fsdp_backward_prefetch_policy': fsdp_backward_prefetch_policy,
                 'fsdp_forward_prefetch': fsdp_forward_prefetch,
                 'fsdp_cpu_ram_efficient_loading': fsdp_cpu_ram_efficient_loading,

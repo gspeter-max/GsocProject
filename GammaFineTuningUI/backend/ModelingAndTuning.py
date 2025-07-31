@@ -27,12 +27,12 @@ HyperparameterConfig = globalConfig(
         TokenizationConfig=GetIt.GetTokenizationConfig(),
         PeftConfig=GetIt.GetPeftConfig(),
         TrainingArguments=GetIt.GetTrainingArguments(
-            report_to = 'tensorboard', 
-            fsdp_config = GetIt.GetFSDP(
+            report_to = 'tensorboard',
+            fsdp_config = GetIt.GetFSDP(), 
+            FSDP = globalConfig.FSDP
+            )
+        ) 
 
-        )
-    )
-        
 from peft import LoraConfig , get_peft_model, TaskType
 import torch
 
