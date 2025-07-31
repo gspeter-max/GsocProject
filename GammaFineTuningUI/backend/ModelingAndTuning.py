@@ -106,7 +106,7 @@ class ModelLoadingAndTuning:
             Prediction = probability.argmax(-1)
             PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
             losses = {} 
-            for metrics in self.HyperparameterConfig.get('TrainingArguments'):
+            for metrics in self.HyperparameterConfig.get('ComputeMetircsList'):
                 if metrics == 'accuracy_scroe':
                     from sklearn.metrics import accuracy_score
                     
@@ -118,9 +118,6 @@ class ModelLoadingAndTuning:
                     losses[metrics] = f1_score( label_ids, probability ) 
 
                 if metrics == 'perplexity':
-                    process = subprocess.run( 'pip install torcheval' , shell = True, capture_output = True, text= True )
-                    print( process.stdout )
-                    
                     from torcheval.metrics.text import Perplexity 
                     m = Perplexity() 
                     m.update( probability, label_ids ) 

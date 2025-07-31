@@ -56,23 +56,6 @@ class ConvertModel:
             Model.save_pretrained(ptSaveFile)
             Tokenizer.save_pretrained( ptSaveFile )
 
-            ProcessOutput = subprocess.run('git clone https://github.com/ggml-org/llama.cpp.git',shell = True, \
-                    stdout = subprocess.PIPE, \
-                    stderr = subprocess.PIPE, \
-                    text = True
-                )
-            print(ProcessOutput.stdout)
-            print(ProcessOutput.stderr)
-
-            ProcessOutput = subprocess.run('pip install -r ./llama.cpp/requirements.txt',\
-                    shell = True, \
-                    stdout = subprocess.PIPE, \
-                    stderr = subprocess.PIPE, \
-                    text = True
-                )
-            print(ProcessOutput.stdout)
-            print(ProcessOutput.stderr)
-
             ProcessOutput = subprocess.run(f'mkdir {self.WhereStored}',\
                     shell = True, \
                     stdout = subprocess.PIPE, \
