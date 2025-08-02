@@ -1,9 +1,9 @@
-import datasets
+from datasets import load_dataset
 from typing import Optional,Union
 from types import NoneType
 import logging
 from huggingface_hub import login
-from datasets import IterableDataset, Dataset,load_dataset
+from transformers import AutoTokenizer
 
 logging.getLogger().setLevel( logging.INFO )
 
@@ -11,124 +11,276 @@ class init_information:
     def __init__(self):
         pass
 
+
+class InvalidDatasetFormatError(Exception):
+    def __init__(self, message="Dataset does not match expected input-output format."):
+        super().__init__(message)
+
+
 class UploadDataset( init_information ):
-    def __init__(
-            self ,
-            path : str = 'qualifire/grounding-benchmark',
-            ContextOrDocOrPassage : bool = False,
-            QuestionOrClaimOrUserInput : bool = False,
-            AnswerOrLabelOrResponse : bool = False,
-            FineTuningType : str = 'ChatBotGrounding'
-            ):
-
+    def __init__( self ,hf_token : str ,tokenizer,path : Union[str, None] = None, \
+        FineTuningType : str = 'chat_fine_tuning' ):
         super().__init__()
-        if not path:
-            raise RuntimeError(' no path is found for loading the dataset ')
-
+        
         self.path = path
-        self.ContextOrDocOrPassage = ContextOrDocOrPassage
-        self.QuestionOrClaimOrUserInput = QuestionOrClaimOrUserInput
-        self.AnswerOrLabelOrResponse = AnswerOrLabelOrResponse
-        self.PossibleColumns = set([
-             'context','doc','user_request', 'context_document', 'full_prompt',
-             'passage','instruction','question','claim','user','answer','labels','response'
-        ])
         self.FineTuningType = FineTuningType
+        self.tokenizer = tokenizer
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.hf_token = hf_token 
 
-    def load_it( self,split = 'all', hf_token : str = None):
+    def load_it( self):
 
-        login(token = hf_token)
+        login(token = self.hf_token)
+        if self.path is None:
+            return None 
+
         path = self.path.split('.',maxsplit = 1)
         if len(path) <= 1:
 
             dataset = load_dataset(
                         path = self.path,
-                        split = split
                     )
             return dataset
 
         if path[1] == 'csv':
             dataset = load_dataset(
                     path = 'csv',
-                    data_files = self.path,
-                    split = split
+                    data_files = self.path
                     )
-            print(dataset)
             return dataset
 
         if path[1] == 'json':
             dataset = load_dataset(
                     path = 'json',
-                    data_files = self.path,
-                    split = split
+                    data_files = self.path
                     )
             return dataset
 
-
-    def DataHandling(
-                self,
-                FirstArgName = '...' ,
-                SecondArgName = '...',
-                ThirdArgName = '...',
-                FourthArgName = '...'
-            ):
-
-            def is_error( arg, name ):
-                if not name == '...':
-                    if not arg:
-                        raise RuntimeError( f''' make sure you spacify {name}
-                            argument for chatbotgrounding
-                            ''' )
-
-            first_arg = getattr(self, FirstArgName, False)
-            second_arg = getattr(self, SecondArgName, False)
-            third_arg = getattr(self, ThirdArgName, False)
-            fourth_arg = getattr(self, FourthArgName, False)
-
-            true_list = [first_arg,second_arg,third_arg,fourth_arg]
-
-            if true_list.count(False) > true_list.count(True): # (x > 1) is Flase means one argument is not available \
-            # we are just comparing to true the logic you know 
-
-                raise RuntimeError( f''' make sure you spacify
-                     {FirstArgName} , {SecondArgName} , {ThirdArgName} , {FourthArgName}
-                     these argument for chatbotgrounding
-                     ''' )
-            else:
-                is_error(first_arg, FirstArgName)
-                is_error(second_arg, SecondArgName)
-                is_error(third_arg, ThirdArgName)
-                is_error(fourth_arg, FourthArgName)
-
-    def PrepareDataset(
-            self,
-            dataset : Union[ IterableDataset, Dataset ]
-            ):
-        if self.FineTuningType.lower() == 'chatbotgrounding':
-            self.DataHandling(
-                    FirstArgName = 'ContextOrDocOrPassage',
-                    SecondArgName = 'QuestionOrClaimOrUserInput',
-                    ThirdArgName = 'AnswerOrLabelOrResponse'
-                    )
-            DatasetColumns = set(map(str.lower, dataset.column_names)).intersection(self.PossibleColumns)
-            return dataset.select_columns(DatasetColumns)
-
-    def __call__(self, hf_token):
-        logging.warning(f'''make sure your dataset look like this
-
-        dataset =
-            'train' : 'features' : ['feature1','feature2'],
-                       'num_rows' : '2873' ,
-            'val' : 'features' : ['feature1','feature2'],
-                       'num_rows' : '2873',
+    def on_loading(self):
+        dataset = self.load_it() 
         
-        If your dataset's columns do not match the required names, 
-        use a function like data.rename_column() to align them.
+        if self.FineTuningType.lower() == 'instruction_fine_tuning':
+            if dataset is None:
+                dataset = load_dataset('yahma/alpaca-cleaned')
 
+            if ('train' in list(dataset.keys())) and \
+                (sorted(dataset['train'].column_names) == sorted(['instruction','input','output'])):
 
-        ''')
-        data = self.load_it(hf_token)
-        return self.PrepareDataset(data)
+                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
+                def map_function(example):
+                    text = [f'instucation : {instrunct} input : {inputs} output : [sep] {output}' for  instrunct, inputs,output in zip(example['instruction'], example['input'], example['output'])]
+                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
+                    label = text.input_ids
+                    index = (label == sep_token_id).nonzero(as_tuple = True)
+                    for row, col in zip(index[0],index[1]):
+                        label[row, :col] = -100
+                    text['label_ids'] = label
+                    return text 
+                
+                train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
+                eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
+
+                return {
+                    'train_dataset' : train_dataset, 
+                    'eval_dataset' : eval_dataset
+                }
+
+            else:
+                raise InvalidDatasetFormatError('''
+                    Dataset does not match expected input-output format
+                    dataset = {
+                        train :  {
+                            "instruction": "Translate to French: 'Good morning'",
+                            "input": "",
+                            "output": "Bonjour"
+                        }, 
+                        eval : {
+                            "instruction": "Translate to French: 'Good morning'",
+                            "input": "",
+                            "output": "Bonjour"
+                        } 
+                    }
+                    ''')
+        if self.FineTuningType.lower() == 'code_generation':
+
+            if dataset is None:
+                dataset= load_dataset('glaiveai/glaive-code-assistant-v2')
+                dataset = dataset.rename_columns({
+                    "question" : 'prompt',
+                    'answer' : 'completion'
+                })
+                dataset['train'] = dataset['train'].select(range(1000))
+
+            if ('train' in list(dataset.keys())) and \
+                (sorted(dataset['train'].column_names) == sorted(['prompt','completion'])):
+                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
+                
+                def map_function(example):
+
+                    text = [f'prompt : {prompt} completion : {completion}' for prompt, completion in zip(example['prompt'], example['completion'])]
+                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
+                    label = text.input_ids
+                    index = (label == sep_token_id).nonzero(as_tuple = True)
+                    for row, col in zip(index[0],index[1]):
+                        label[row, :col] = -100
+                    text['label_ids'] = label
+                    return text 
+                
+                train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
+                eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
+
+                return {
+                    'train_dataset' : train_dataset, 
+                    'eval_dataset' : eval_dataset
+                }
+
+            else:
+                raise InvalidDatasetFormatError('''
+                Dataset does not match expected input-output format
+                    dataset = {
+                        train : { "prompt": "Write Python code for...", "completion": "def foo(): ..." }, 
+                        eval : { "prompt": "Write Python code for...", "completion": "def foo(): ..." }
+                    }
+                ''')
+
+        if self.FineTuningType.lower() == 'chat_fine_tuning':
+            if dataset is None:
+                dataset = load_dataset('Crystalcareai/Code-feedback-sharegpt-renamed')
+                dataset = dataset.remove_columns('id')
+
+            if ('train' in dataset.keys()) and (sorted(dataset['train'].column_names) == sorted(['messages'])) and (sorted(dataset['train']['messages'][1][1]) == sorted(['role','value'])):
+                    self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
+
+                    def map_function(example):
+                        outer_list = []
+                        for list_example in example['messages']: 
+                            inner_list = []
+                            # print('===============================================================')
+                            # print(list_example)
+                            # print(f'===============================================================')
+                            for _dict in list_example:
+                                # print('===============================================================')
+                                # print(_dict)
+                                # print(f'===============================================================')
+                                inner_list.append(f'role : {_dict["role"]} content : {_dict["value"]}')
+                            inner_list = ' '.join(inner_list)
+                            outer_list.append(inner_list)
+                            
+                        text = self.tokenizer(outer_list, truncation = True, padding = True, return_tensors = 'pt')
+                        sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
+                        label = text.input_ids
+                        index = (label == sep_token_id).nonzero(as_tuple = True)
+                        for row, col in zip(index[0],index[1]):
+                            label[row, :col] = -100
+                        text['label_ids'] = label
+                        return text 
+                    
+                    train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
+                    eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
+
+                    return {
+                        'train_dataset' : train_dataset, 
+                        'eval_dataset' : eval_dataset
+                    }
+
+            else :
+                raise InvalidDatasetFormatError('''
+                        Dataset does not match expected input-output format
+                        dataset = {
+                            train : { "messages": [ {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."} ] }, 
+                            eval : { "messages": [ {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."} ] }
+                        }
+                ''')
+        
+        if self.FineTuningType.lower() in  ('question_answering','rag_fine_tuning'):
+            if dataset is None:
+
+                if self.FineTuningType.lower() == 'question_answering':
+                    dataset = load_dataset('rajpurkar/squad_v2')
+                    dataset = dataset.remove_columns(['id','title'])
+                
+                if self.FineTuningType.lower() == 'rag_fine_tuning':
+                    
+                    dataset = load_dataset('microsoft/ms_marco','v2.1')
+                    dataset = dataset['validation'].rename_columns({
+                        'passages' : 'context',
+                        'query' : 'question'
+                    })
+                    dataset = dataset.remove_columns(['query_id','query_type','wellFormedAnswers'])
+                    dataset = dataset.select(range(1000))
+            
+            if (sorted(dataset.keys()) == sorted(['train','eval'])) and \
+                (sorted(dataset['train'].column_names) == sorted(['question','context','answer'])):
+
+                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
+                
+                def map_function(example):
+                    
+                    text = [f'context : {context} question : {question} answer : [sep] {answer}' for  context, question,answer in zip(example['context'], example['question'], example['answer'])]
+                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
+                    label = text.input_ids
+                    index = (label == sep_token_id).nonzero(as_tuple = True)
+                    for row, col in zip(index[0],index[1]):
+                        label[row, :col] = -100
+                    text['label_ids'] = label
+                    return text 
+                
+                train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
+                eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
+
+                return {
+                    'train_dataset' : train_dataset, 
+                    'eval_dataset' : eval_dataset
+                }
+
+            else:
+                raise InvalidDatasetFormatError('''
+                Dataset does not match expected input-output format
+                    dataset = {
+                        train : { "question": "...", "context": "...", "answer": "..." },
+                        eval : { "question": "...", "context": "...", "answer": "..." }
+                    }
+                ''')
+        
+        if self.FineTuningType.lower() == 'domain_adaptation':
+            if (sorted(dataset.keys()) == sorted(['train','eval'])) and \
+                (sorted(dataset['train'].column_names) == sorted(['input','output'])):
+
+                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
+                
+                def map_function(example):
+                    text = [f'input : {inputs} output : [sep] {output}' for  inputs,output in zip(example['inputs'], example['output'])]
+                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
+                    label = text.input_ids
+                    index = (label == sep_token_id).nonzero(as_tuple = True)
+                    for row, col in zip(index[0],index[1]):
+                        label[row, :col] = -100
+                    text['label_ids'] = label
+                    return text 
+                
+                train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
+                eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
+
+                return {
+                    'train_dataset' : train_dataset, 
+                    'eval_dataset' : eval_dataset
+                }
+
+            else:
+                raise InvalidDatasetFormatError('''
+                Dataset does not match expected input-output format
+                    dataset = {
+                        train : { "input": "...", "output": "..." },
+                        eval : { "input": "...", "output": "..." }
+                    }
+                ''')
+        
+        else:
+            raise InvalidDatasetFormatError(f'{self.FineTuningType.lower()} is not added yet')
 
     def DataArgumentation(self):
         ''' we are hold here
@@ -138,10 +290,7 @@ class UploadDataset( init_information ):
 
         '''
         pass
-#Datasets = UploadDataset(
-#     ContextOrDocOrPassage = True,
-#     QuestionOrClaimOrUserInput = True,
-#     AnswerOrLabelOrResponse = True
-# )
-# dataset = Datasets()
 
+tok = AutoTokenizer.from_pretrained('gpt2')
+Datasets = UploadDataset(hf_token = '', tokenizer = tok)
+dataset = Datasets.on_loading()
