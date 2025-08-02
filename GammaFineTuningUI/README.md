@@ -5,7 +5,7 @@
 #    `pip install -r llama.cpp/requirements.txt`
 # 3. install torcheval
 #    `pip install torcheval`
-# 4. for visilization and looking training progress do  this before executing trainer.train 
+### 4. for visilization and looking training progress do  this before executing trainer.train 
     ```python  %load_ext tensorboard
          %tensorboard --logdir ./logs ``` 
  
