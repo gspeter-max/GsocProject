@@ -19,7 +19,7 @@ class InvalidDatasetFormatError(Exception):
 
 class UploadDataset( init_information ):
     def __init__( self ,hf_token : str ,tokenizer,path : Union[str, None] = None, \
-        FineTuningType : str = 'chat_fine_tuning' ):
+        FineTuningType : str = 'domain_adaptation' ):
         super().__init__()
         
         self.path = path
@@ -150,20 +150,14 @@ class UploadDataset( init_information ):
                 dataset = load_dataset('Crystalcareai/Code-feedback-sharegpt-renamed')
                 dataset = dataset.remove_columns('id')
 
-            if ('train' in dataset.keys()) and (sorted(dataset['train'].column_names) == sorted(['messages'])) and (sorted(dataset['train']['messages'][1][1]) == sorted(['role','value'])):
+            if ('train' in list(dataset.keys())) and (sorted(dataset['train'].column_names) == sorted(['messages'])) and (sorted(dataset['train']['messages'][1][1]) == sorted(['role','value'])):
                     self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
 
                     def map_function(example):
                         outer_list = []
                         for list_example in example['messages']: 
                             inner_list = []
-                            # print('===============================================================')
-                            # print(list_example)
-                            # print(f'===============================================================')
                             for _dict in list_example:
-                                # print('===============================================================')
-                                # print(_dict)
-                                # print(f'===============================================================')
                                 inner_list.append(f'role : {_dict["role"]} content : {_dict["value"]}')
                             inner_list = ' '.join(inner_list)
                             outer_list.append(inner_list)
@@ -198,20 +192,23 @@ class UploadDataset( init_information ):
             if dataset is None:
 
                 if self.FineTuningType.lower() == 'question_answering':
-                    dataset = load_dataset('rajpurkar/squad_v2')
-                    dataset = dataset.remove_columns(['id','title'])
+                    dataset = load_dataset('mou3az/Question-Answering-Generation-Choices')
+                    dataset = dataset.remove_columns(['distractors'])
+                    dataset['train'] = dataset['train'].select(range(1000))
                 
                 if self.FineTuningType.lower() == 'rag_fine_tuning':
                     
                     dataset = load_dataset('microsoft/ms_marco','v2.1')
-                    dataset = dataset['validation'].rename_columns({
+                    dataset['train'] = dataset['train'].rename_columns({
                         'passages' : 'context',
-                        'query' : 'question'
+                        'query' : 'question',
+                        'answers' : 'answer'
                     })
+
                     dataset = dataset.remove_columns(['query_id','query_type','wellFormedAnswers'])
-                    dataset = dataset.select(range(1000))
-            
-            if (sorted(dataset.keys()) == sorted(['train','eval'])) and \
+                    dataset['train'] = dataset['train'].select(range(1000))
+
+            if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['question','context','answer'])):
 
                 self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
@@ -223,6 +220,7 @@ class UploadDataset( init_information ):
                     sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
                     label = text.input_ids
                     index = (label == sep_token_id).nonzero(as_tuple = True)
+                    
                     for row, col in zip(index[0],index[1]):
                         label[row, :col] = -100
                     text['label_ids'] = label
@@ -245,40 +243,6 @@ class UploadDataset( init_information ):
                     }
                 ''')
         
-        if self.FineTuningType.lower() == 'domain_adaptation':
-            if (sorted(dataset.keys()) == sorted(['train','eval'])) and \
-                (sorted(dataset['train'].column_names) == sorted(['input','output'])):
-
-                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
-                
-                def map_function(example):
-                    text = [f'input : {inputs} output : [sep] {output}' for  inputs,output in zip(example['inputs'], example['output'])]
-                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
-                    sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
-                    label = text.input_ids
-                    index = (label == sep_token_id).nonzero(as_tuple = True)
-                    for row, col in zip(index[0],index[1]):
-                        label[row, :col] = -100
-                    text['label_ids'] = label
-                    return text 
-                
-                train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
-                eval_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names) if 'eval' in list(dataset.keys()) else None 
-
-                return {
-                    'train_dataset' : train_dataset, 
-                    'eval_dataset' : eval_dataset
-                }
-
-            else:
-                raise InvalidDatasetFormatError('''
-                Dataset does not match expected input-output format
-                    dataset = {
-                        train : { "input": "...", "output": "..." },
-                        eval : { "input": "...", "output": "..." }
-                    }
-                ''')
-        
         else:
             raise InvalidDatasetFormatError(f'{self.FineTuningType.lower()} is not added yet')
 
@@ -291,6 +255,6 @@ class UploadDataset( init_information ):
         '''
         pass
 
-tok = AutoTokenizer.from_pretrained('gpt2')
-Datasets = UploadDataset(hf_token = '', tokenizer = tok)
-dataset = Datasets.on_loading()
+# tok = AutoTokenizer.from_pretrained('gpt2')
+# Datasets = UploadDataset(hf_token = '', tokenizer = tok)
+# dataset = Datasets.on_loading()
