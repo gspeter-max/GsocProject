@@ -4,7 +4,7 @@ from backend.ModelingAndTuning import ModelLoadingAndTuning
 config_obj = global_config(
       ModelName  = 'gpt2',
       DatasetPath = None, 
-      FineTuneType = 'instruction_fine_tuning',
+      FineTuningType = 'instruction_fine_tuning',
       ModelSeqMaxLength = None,
       QuantizationType4Bit8Bit = '8bit',
       ComputeMetricsList = ['accuracy'],
@@ -85,7 +85,7 @@ tuning.LoadItTrainIt()
 
 # config_obj = global_config(
 #       ModelName  = 'gpt2',
-#       FineTuneType = 'instruction_fine_tuning',
+#       FineTuningType = 'instruction_fine_tuning',
 #       ComputeMetricsList = ['accuracy'],
 #       SaveFormat  = 'gguf',
 #       HfToken  = ''
