@@ -87,9 +87,6 @@ class global_config:
         target_modules: list = None,
         inference_mode: bool = False
     ) -> dict:
-        logger.info(f'''
-            make sure ,  {target_modules} is the part of model layers  
-        ''')
         return {
             "task_type": task_type,
             "r": r,
