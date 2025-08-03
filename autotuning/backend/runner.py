@@ -4,7 +4,7 @@ from backend.ModelingAndTuning import ModelLoadingAndTuning
 config_obj = global_config(
       ModelName  = 'gpt2',
       DatasetPath = None, 
-      FineTuneType = None,
+      FineTuneType = 'instruction_fine_tuning',
       ModelSeqMaxLength = None,
       QuantizationType4Bit8Bit = '8bit',
       ComputeMetricsList = ['accuracy'],
@@ -70,7 +70,7 @@ fsdpconfig = config_obj.GetFSDP(
 HyperparameterConfig = config_obj.get_full_config(
       PeftConfig = peft_config, 
       TrainingArguments = training_arg, 
-      fsdp_config = fsdp_config      
+      fsdp_config = fsdpconfig      
 )
 
 tuning = ModelLoadingAndTuning(HyperparameterConfig)
@@ -98,6 +98,6 @@ tuning.LoadItTrainIt()
 
 """
 # run in terminal
-# cd ./GsocProject/GammaFineTuningUI/
+# cd ./GsocProject/autotuning/
 # python -m backend.runner
 """
