@@ -119,6 +119,7 @@ class global_config:
         fsdp_config = None,
         warmup_steps: int = 500,
         lr_scheduler_type: str = "linear",
+        run_name : Optional[str] = None,
         gradient_accumulation_steps: int = 1,
         gradient_checkpointing: bool = False,
         save_steps: int = 500,
