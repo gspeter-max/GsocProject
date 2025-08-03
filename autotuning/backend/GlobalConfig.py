@@ -22,7 +22,7 @@ class global_config:
                 self.ComputeMetricsList = ComputeMetricsList
                 self.PeftType = PeftType
                 self.DatasetPath  = DatasetPath
-                self.FineTuneType = FinetuneType
+                self.FineTuneType = FineTuneType
                 self.ModelSeqMaxLength = ModelSeqMaxLength
                 self.HfToken = HfToken
                 self.EvalSaveFormat = EvalSaveFormat
