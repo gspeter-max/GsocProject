@@ -188,5 +188,3 @@ class ModelLoadingAndTuning:
             df = pd.DataFrame( AllEvalResult.AllEvaluations )
             df.to_json('./EvalResult.json')
             logger.info(f'evaluation result  "{pwd}/EvalResult.json" stored in {Format.lower()}') 
-
-
