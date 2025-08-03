@@ -22,7 +22,8 @@ from peft import LoraConfig , get_peft_model, TaskType
 import torch
 import logging 
 
-logger = logging.getLogger().setLevel(logging.INFO) 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 class AllEvaluationResultCallback( TrainerCallback ):
     def __init__(  self, Trainer ):
@@ -149,7 +150,7 @@ class ModelLoadingAndTuning:
                 model = model,
                 args = TrainingArg,
                 train_dataset = dataset['train_dataset'],
-                eval_dataset = dataset['train_dataset'],
+                eval_dataset = dataset['eval_dataset'],
                 compute_metrics = self.ComputeMetrics
             )
 
