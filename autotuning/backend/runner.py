@@ -12,7 +12,7 @@ config_obj = global_config(
       SaveFormat  = 'gguf', 
       ModelDir  = './hfConvertedModel',  
       EvalSaveFormat  = 'json', 
-      FSDP = True,
+      FSDP = False, # for multipal gpu not for single , if you have turn on it 
       HfToken  = ''
 )
 
@@ -28,8 +28,8 @@ peft_config = config_obj.GetPeftConfig(
 
 training_arg = config_obj.GetTrainingArguments(
       output_dir= "./results",
-      per_device_train_batch_size=  8,
-      per_device_eval_batch_size=  8,
+      per_device_train_batch_size=  1,
+      per_device_eval_batch_size=  1,
       num_train_epochs= 3.0,
       learning_rate = 5e-5,
       weight_decay = 0.01,
@@ -50,6 +50,7 @@ training_arg = config_obj.GetTrainingArguments(
       gradient_accumulation_steps = 1,
       gradient_checkpointing = False,
       save_steps = 500,
+      run_name = None,
       logging_first_step = True,
       report_to = None
 )
