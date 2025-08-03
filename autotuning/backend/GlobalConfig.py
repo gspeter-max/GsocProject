@@ -1,5 +1,9 @@
 from typing import Optional, List, Union
 import os 
+import logging 
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 class global_config:
     def __init__(
@@ -84,7 +88,7 @@ class global_config:
         inference_mode: bool = False
     ) -> dict:
         logger.info(f'''
-            make sure ,  {target_module} is the part of model layers  
+            make sure ,  {target_modules} is the part of model layers  
         ''')
         return {
             "task_type": task_type,
