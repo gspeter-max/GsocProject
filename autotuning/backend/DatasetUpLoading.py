@@ -5,7 +5,8 @@ import logging
 from huggingface_hub import login
 from transformers import AutoTokenizer
 
-logging.getLogger().setLevel( logging.INFO )
+logger = logging.getLogger()
+logger.setLevel( logging.INFO )
 
 class init_information:
     def __init__(self):
