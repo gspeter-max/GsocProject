@@ -1,3 +1,8 @@
+import sys 
+import os 
+import numpy as np 
+
+sys.path.append(os.getcwd())
 from transformers import (
         AutoTokenizer,
         AutoModelForCausalLM,
@@ -5,35 +10,14 @@ from transformers import (
         Trainer
         )
 
-
+import evaluate 
 from transformers.trainer_callback import TrainerCallback 
 from transformers.training_args import TrainingArguments
 from .DatasetUpLoading import UploadDataset
-import os 
 import importlib
 from .GlobalConfig import global_config
 import subprocess 
 import pandas as pd 
-
-hftoken = os.environ.get('HF_TOKEN')
-globalConfig = global_config(
-        ModelName = 'gpt2',
-        QuantizationType4Bit8Bit = False,
-        ComputeMetricsList = ['accuracy_scores','f1_score'],
-        HfToken = hftoken, 
-        FSDP = True
-        )
-
-HyperparameterConfig = globalConfig(
-        TokenizationConfig=global_config.GetTokenizationConfig(),
-        PeftConfig=global_config.GetPeftConfig(),
-        TrainingArguments=global_config.GetTrainingArguments(
-            report_to = 'tensorboard',
-            fsdp_config = global_config.GetFSDP(), 
-            FSDP = globalConfig.FSDP
-            )
-        ) 
-
 from peft import LoraConfig , get_peft_model, TaskType
 import torch
 import logging 
@@ -53,54 +37,49 @@ class AllEvaluationResultCallback( TrainerCallback ):
 
 class ModelLoadingAndTuning:
     def __init__(self,HyperparameterConfig):
+
         self.HyperparameterConfig = HyperparameterConfig
         self.tokenizer = AutoTokenizer.from_pretrained( self.HyperparameterConfig['ModelName'])
+        self.tokenizer.add_special_tokens({'sep_token': '[SEP]'})
         self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.tokenizer.add_special_tokens({'additional_special_tokens' : ["[SEP]"]})
 
-    def map_function(self,example):
-
-        text = [f'{doc} [SEP] {claim} ' for doc , claim in zip(example['doc'], example['claim'])]
-        tokenized = self.tokenizer(
-                text,
-                padding = self.HyperparameterConfig.get('TokenizationConfig')['padding'] ,
-                return_tensors = 'pt',
-                max_length = self.HyperparameterConfig.get('TokenizationConfig')['max_length'],
-                truncation = self.HyperparameterConfig.get('TokenizationConfig')['truncation']
-        )
-        labels = tokenized.input_ids.clone()
-        SEPTokenId = self.tokenizer.convert_tokens_to_ids("[SEP]")
-        mask_index = torch.argwhere(labels == SEPTokenId )
-        rows, columns  = zip(mask_index[0], mask_index[1])
-        for r, c  in zip(rows, columns):
-                labels[r,:c] = -100
-        return {
-                'input_ids' : tokenized.input_ids,
-                'attention_mask' : tokenized.attention_mask,
-                'labels' : labels
-                }
     def ComputeMetrics( self,EvalPredict ):
-    
-        probability , label_ids = EvalPredict
+        
+        probability , labels = EvalPredict
         Prediction = probability.argmax(-1)
-        PossibleMetrics = ('accuracy_scores', 'f1_score', 'perplexity')
+        PossibleMetrics = ('accuracy', 'f1', 'perplexity')
+        labels = np.array(labels, dtype = np.int32)
+        Prediction = np.array(Prediction, dtype = np.int32)
         losses = {} 
-        for metrics in self.HyperparameterConfig.get('ComputeMetricsList'):
-            if metrics == 'accuracy_scores':
-                from sklearn.metrics import accuracy_score
+
+
+        mask = labels != -100 
+        labels_list = labels[mask]
+        pred_list = Prediction[mask]
+        
+        for metrics in self.HyperparameterConfig.get('ComputeMetricsList',[]):
+
+            if metrics == 'accuracy':
+
+                accuracy = evaluate.load('accuracy')
+                accuracy_metrics  = accuracy.compute( references = labels_list.tolist(), predictions = pred_list.tolist())['accuracy']
+                losses[metrics] = accuracy_metrics
                 
-                losses[metrics]  = accuracy_score( label_ids, probability )
 
-            if metrics == 'f1_score':
-                from sklearn.metrics import f1_score 
+            elif metrics == 'f1':
+                f1 = evaluate.load('f1')
 
-                losses[metrics] = f1_score( label_ids, probability ) 
+                losses[metrics] = f1.compute( references = labels_list.tolist(),
+                    predictions = pred_list.tolist(),
+                    average = 'macro'
+                )['f1']
 
-            if metrics == 'perplexity':
+            elif metrics == 'perplexity':
+
                 from torcheval.metrics.text import Perplexity 
                 m = Perplexity() 
-                m.update( probability, label_ids ) 
-                losses[metrics] = m.compute() 
+                m.update( torch.tensor(probability), torch.tensor(labels)) 
+                losses[metrics] = m.compute().items() 
             
             else: 
                 raise AttributeError(f'{metrics} not supported , available metrics {PossibleMetrics}')
@@ -108,21 +87,32 @@ class ModelLoadingAndTuning:
         return losses
 
     def LoadItTrainIt( self):
+        
+        Datasets = UploadDataset(
+            hf_token = self.HyperparameterConfig['HfToken'], 
+            tokenizer = self.tokenizer, 
+            FineTuningType = self.HyperparameterConfig['FineTuningType'],
+            max_length = self.HyperparameterConfig['ModelSeqMaxLength'], 
+            path = self.HyperparameterConfig['DatasetPath']
+        )
+        
+        dataset = Datasets.on_loading()
 
-        Dataset = UploadDataset(
-                ContextOrDocOrPassage  = True, 
-                QuestionOrClaimOrUserInput = True, 
-                AnswerOrLabelOrResponse = False
-        ) 
-        dataset = Dataset(self.HyperparameterConfig.get('HfToken'))
-
-        tokenized_data = dataset.map(self.map_function, batched = True, remove_columns = dataset.column_names)
-        if self.HyperparameterConfig.get('QuantizationType4Bit8Bit'):
+        quantizationConfig = None
+        if (self.HyperparameterConfig.get('QuantizationType4Bit8Bit') == '4bit') or \
+            (self.HyperparameterConfig.get('PeftConfig') == 'qlora'):
             quantizationConfig = BitsAndBytesConfig(
-                        load_in_8bit = True
+                        load_in_4bit = True, 
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_quant_type = 'nf4', 
+                        bnb_4bit_use_double_quant= True,
+                        bnb_4bit_quant_storage= torch.float16
                     )
-        else:
-            quantizationConfig = None
+        
+        elif self.HyperparameterConfig.get('QuantizationType4Bit8Bit') == '8bit':
+            quantizationConfig = BitsAndBytesConfig(
+                load_in_8bit = True
+            )
 
         model = AutoModelForCausalLM.from_pretrained(
                 self.HyperparameterConfig.get('ModelName'),
@@ -131,7 +121,16 @@ class ModelLoadingAndTuning:
                 trust_remote_code = True
                 )
 
-        model.resize_token_embeddings(len(tokenizer))
+        available_layers = set()
+        for name, _ in model.named_parameters():
+            available_layers.add(str(name).split('.')[-2])
+        
+        peft_target_modules = self.HyperparameterConfig['PeftConfig']['target_modules']
+        
+        if not set(peft_target_modules).issubset(available_layers):
+            raise ValueError(f'{peft_target_modules} is not found in {available_layers} modules')
+
+        model.resize_token_embeddings(len(self.tokenizer))
         with torch.no_grad():
             model.get_input_embeddings().weight[-1]= torch.mean(model.get_input_embeddings().weight[:-1], dim = 0)
 
@@ -141,29 +140,31 @@ class ModelLoadingAndTuning:
         )
         model = get_peft_model(model, Lora_config)
 
-        trainingArgConfig = self.HyperparameterConfig.get('TrainingArguments')
+        training_arg_config = self.HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
-                **trainingArgConfig
+                **training_arg_config
                 )
         
         trainer = Trainer(
                 model = model,
                 args = TrainingArg,
-                train_dataset = tokenized_data,
+                train_dataset = dataset['train_dataset'],
+                eval_dataset = dataset['train_dataset'],
                 compute_metrics = self.ComputeMetrics
-                )
+            )
+
         
-        if self.HyperparameterConfig.get('EvalSaveFormat') not None : 
+        if self.HyperparameterConfig.get('EvalSaveFormat')  is not None : 
             if self.HyperparameterConfig.get('EvalSaveFormat').lower() not in ('csv','json'):
                 raise AttributeError(f'''{self.HyperparameterConfig.get("EvalSaveFormat")} is supported  ,
                                      acceptable format ("csv","json") '''
-                            ) 
+                            )
+
             AllEvalResult = AllEvaluationResultCallback( trainer )
             trainer.add_callback( AllEvalResult )
 
         # %load_ext tensorboard
         # %tensorboard --logdir ./logs
-        
         trainer.train()
 
         if (self.HyperparameterConfig.get('ModelDir') is not None) or (self.HyperparameterConfig.get('SaveFormat') is not None):
@@ -173,7 +174,7 @@ class ModelLoadingAndTuning:
                     Format = self.HyperparameterConfig.get('SaveFormat'),
                     WhereStored = self.HyperparameterConfig.get('ModelDir')
                     )
-            convertmodel( model, tokenizer )
+            convertmodel( model, self.tokenizer )
 
         pwd = os.getcwd()
         Format = self.HyperparameterConfig.get('EvalSaveFormat') 
@@ -187,7 +188,4 @@ class ModelLoadingAndTuning:
             df.to_json('./EvalResult.json')
             logger.info(f'evaluation result  "{pwd}/EvalResult.json" stored in {Format.lower()}') 
 
-
-# tuning = ModelLoadingAndTuning()
-# tuning.LoadItTrainIt()
 
