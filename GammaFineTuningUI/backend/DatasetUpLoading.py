@@ -19,14 +19,15 @@ class InvalidDatasetFormatError(Exception):
 
 class UploadDataset( init_information ):
     def __init__( self ,hf_token : str ,tokenizer,path : Union[str, None] = None, \
-        FineTuningType : str = 'domain_adaptation' ):
+        FineTuningType : str = None ,max_length = None):
         super().__init__()
         
+        logger.info('max_length is "None",update to it max_length = 1024 ')
         self.path = path
         self.FineTuningType = FineTuningType
         self.tokenizer = tokenizer
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.hf_token = hf_token 
+        self.hf_token = hf_token
+        self.max_length = max_length if max_length is not None else 1024 
 
     def load_it( self):
 
@@ -62,6 +63,7 @@ class UploadDataset( init_information ):
         if self.FineTuningType.lower() == 'instruction_fine_tuning':
             if dataset is None:
                 dataset = load_dataset('yahma/alpaca-cleaned')
+                dataset['train'] = dataset['train'].select(range(10))
 
             if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['instruction','input','output'])):
@@ -69,13 +71,13 @@ class UploadDataset( init_information ):
                 self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
                 def map_function(example):
                     text = [f'instucation : {instrunct} input : {inputs} output : [sep] {output}' for  instrunct, inputs,output in zip(example['instruction'], example['input'], example['output'])]
-                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    text = self.tokenizer(text, truncation = True, padding = 'max_length',max_length = self.max_length ,return_tensors = 'pt')
                     sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
-                    label = text.input_ids
+                    label = text.input_ids.clone()
                     index = (label == sep_token_id).nonzero(as_tuple = True)
                     for row, col in zip(index[0],index[1]):
                         label[row, :col] = -100
-                    text['label_ids'] = label
+                    text['labels'] = label
                     return text 
                 
                 train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
@@ -114,18 +116,17 @@ class UploadDataset( init_information ):
 
             if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['prompt','completion'])):
-                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
                 
                 def map_function(example):
 
                     text = [f'prompt : {prompt} completion : {completion}' for prompt, completion in zip(example['prompt'], example['completion'])]
-                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    text = self.tokenizer(text, truncation = True, padding = 'max_length', max_length = self.max_length,return_tensors = 'pt')
                     sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
-                    label = text.input_ids
+                    label = text.input_ids.clone()
                     index = (label == sep_token_id).nonzero(as_tuple = True)
                     for row, col in zip(index[0],index[1]):
                         label[row, :col] = -100
-                    text['label_ids'] = label
+                    text['labels'] = label
                     return text 
                 
                 train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
@@ -151,7 +152,6 @@ class UploadDataset( init_information ):
                 dataset = dataset.remove_columns('id')
 
             if ('train' in list(dataset.keys())) and (sorted(dataset['train'].column_names) == sorted(['messages'])) and (sorted(dataset['train']['messages'][1][1]) == sorted(['role','value'])):
-                    self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
 
                     def map_function(example):
                         outer_list = []
@@ -162,13 +162,13 @@ class UploadDataset( init_information ):
                             inner_list = ' '.join(inner_list)
                             outer_list.append(inner_list)
                             
-                        text = self.tokenizer(outer_list, truncation = True, padding = True, return_tensors = 'pt')
+                        text = self.tokenizer(outer_list, truncation = True, padding = 'max_length',max_length = self.max_length ,return_tensors = 'pt')
                         sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
-                        label = text.input_ids
+                        label = text.input_ids.clone()
                         index = (label == sep_token_id).nonzero(as_tuple = True)
                         for row, col in zip(index[0],index[1]):
                             label[row, :col] = -100
-                        text['label_ids'] = label
+                        text['labels'] = label
                         return text 
                     
                     train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
@@ -210,20 +210,17 @@ class UploadDataset( init_information ):
 
             if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['question','context','answer'])):
-
-                self.tokenizer.add_special_tokens({'sep_token': '[sep]'})
                 
                 def map_function(example):
                     
                     text = [f'context : {context} question : {question} answer : [sep] {answer}' for  context, question,answer in zip(example['context'], example['question'], example['answer'])]
-                    text = self.tokenizer(text, truncation = True, padding = True, return_tensors = 'pt')
+                    text = self.tokenizer(text, truncation = True, padding = 'max_length',max_length = self.max_length, return_tensors = 'pt')
                     sep_token_id = self.tokenizer.convert_tokens_to_ids('[sep]')
-                    label = text.input_ids
+                    label = text.input_ids.clone()
                     index = (label == sep_token_id).nonzero(as_tuple = True)
-                    
                     for row, col in zip(index[0],index[1]):
                         label[row, :col] = -100
-                    text['label_ids'] = label
+                    text['labels'] = label
                     return text 
                 
                 train_dataset = dataset['train'].map( map_function, batched = True, remove_columns = dataset['train'].column_names)
@@ -242,19 +239,3 @@ class UploadDataset( init_information ):
                         eval : { "question": "...", "context": "...", "answer": "..." }
                     }
                 ''')
-        
-        else:
-            raise InvalidDatasetFormatError(f'{self.FineTuningType.lower()} is not added yet')
-
-    def DataArgumentation(self):
-        ''' we are hold here
-                1. the idea we are do that with two new features
-                first using RAG ( i need to learn )
-                    2. using LLM with separate
-
-        '''
-        pass
-
-# tok = AutoTokenizer.from_pretrained('gpt2')
-# Datasets = UploadDataset(hf_token = '', tokenizer = tok)
-# dataset = Datasets.on_loading()
