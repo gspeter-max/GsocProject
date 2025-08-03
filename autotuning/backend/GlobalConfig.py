@@ -9,7 +9,7 @@ class global_config:
     def __init__(
             self,
             DatasetPath : str = None,
-            FineTuneType : str = None,
+            FineTuningType : str = None,
             ModelSeqMaxLength : int = None,
             ModelName : str = 'gpt2',
             QuantizationType4Bit8Bit : Union[str,None] = None,
@@ -26,7 +26,7 @@ class global_config:
                 self.ComputeMetricsList = ComputeMetricsList
                 self.PeftType = PeftType
                 self.DatasetPath  = DatasetPath
-                self.FineTuneType = FineTuneType
+                self.FineTuningType = FineTuningType
                 self.ModelSeqMaxLength = ModelSeqMaxLength
                 self.HfToken = HfToken
                 self.EvalSaveFormat = EvalSaveFormat
@@ -37,9 +37,9 @@ class global_config:
                 if self.PeftType == 'qlora':
                     self.QuantizationType4Bit8Bit = '4bit'
                 
-                if self.FineTuneType is None:
+                if self.FineTuningType is None:
                     raise ValueError(
-                        "FinetuneType is None, which is not allowed. Please select from the following:\n"
+                        "FineTuningType is None, which is not allowed. Please select from the following:\n"
                         "['instruction_fine_tuning', 'code_generation', 'chat_fine_tuning', 'question_answering', 'rag_fine_tuning']"
                     )
 
@@ -166,7 +166,7 @@ class global_config:
                 'SaveFormat' : self.SaveFormat,
                 'HfToken' : self.HfToken,
                 'DatasetPath': self.DatasetPath,
-                'FineTuneType': self.FineTuneType,
+                'FineTuningType': self.FineTuningType,
                 'ModelSeqMaxLength': self.ModelSeqMaxLength,
                 'ModelDir' : self.ModelDir,
                 'EvalSaveFormat' : self.EvalSaveFormat,
