@@ -144,6 +144,7 @@ class global_config:
             "metric_for_best_model": metric_for_best_model,
             "greater_is_better": greater_is_better,
             "fp16": fp16,
+            "fsdp_config" : fsdp_config,
             "warmup_steps": warmup_steps,
             "label_names" : label_names,
             "lr_scheduler_type": lr_scheduler_type,
