@@ -167,7 +167,7 @@ class global_config:
                 'QuantizationType4Bit8Bit' : self.QuantizationType4Bit8Bit,
                 'SaveFormat' : self.SaveFormat,
                 'HfToken' : self.HfToken,
-                'Dataset_path': self.Dataset_path,
+                'Datasetpath': self.Datasetpath,
                 'FineTuneType': self.FineTuneType,
                 'ModelSeqMaxLength': self.ModelSeqMaxLength,
                 'ModelDir' : self.ModelDir,
