@@ -37,6 +37,8 @@ class global_config:
                 if self.PeftType == 'qlora':
                     self.QuantizationType4Bit8Bit = '4bit'
                 
+                if self.HfToken is None:
+                    raise RuntimeError('huggingface token is missing please visit here and create it : https://huggingface.co/settings/tokens/new?tokenType=fineGrained ')
                 if self.FineTuningType is None:
                     raise ValueError(
                         "FineTuningType is None, which is not allowed. Please select from the following:\n"
@@ -50,7 +52,7 @@ class global_config:
                 if self.SaveFormat == 'gguf':
                     if self.QuantizationType4Bit8Bit is not None:
                         raise RuntimeError('guff with quantization is not supported please chnage `QuantizationType4Bit8Bit = None` or `SaveFormat` ')
-                        
+
                 if self.SaveFormat not in ('tensorflow','torch','gguf',None):
                     raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
 
