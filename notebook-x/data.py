@@ -6,46 +6,36 @@ from youtube_transcript_api import YouTubeTranscripApi
 from youtube_search import YoutubeSearch
 
 class url_data:
-    def __init__( self , query : str  , urls : Union[ list, str], pdfs : Union[ list, str]):
+    def __init__( self , query : str  ,web_urls : Union[ list, str], \
+            pdfs : Union[ list, str], youtube_video_ids : Union[list, str] ):
         self.query = query 
-        self.urls = urls 
+        self.web_urls = web_urls 
         self.pdfs = pdfs
+        self.youtube_video_ids = youtube_video_ids
 
-    def get_url_data( self, dataset : dict):
-
+    def get_web_url( self):
+        web_url = []
         for url in search_function( self.query, num = 1, stop = 1):
-            response = requests.get(url) 
-            soup = BeautifulSoup( response.text, 'html.parser')
-            text = [] 
-            for p_teg in soup.select('p'):
-                if p_teg.get_text( strip = true) == '':
-                    continue 
-                text.append( p_teg.get_text( strip = true )) 
-        
-            dataset['content'] = text 
-            dataset['title'] = soup.title.get_text(strip = true)
+            web_url.append( url )
 
-        return dataset 
+        return web_url
 
-    def get_user_url_data( self,urls : Union[ list, str] ):
+    def get_url_data( self,urls : Union[ list, str] ):
         if isinstance( urls , str ):
             urls = [urls] 
 
-        dataset = {} 
+        text = '' 
         for url in urls: 
             response = requests.get( url )
             soup = BeautifulSoup( response.text, 'html.parser')
-            text = [] 
             
             for p_teg in soup.select('p'):
                 if p_teg.get_text( strip = true) == '':
                     continue 
-                text.append( p_teg.get_text( strip = true )) 
+                text += p_teg.get_text( strip = true )
         
-            dataset['content'] = text 
-            dataset['title'] = soup.title.get_text(strip = true)
 
-        return dataset
+        return text
     
     def get_text_from_pdf( self , pdfs : Union[ list, str ] ):
         if isinstance( pdfs, str):
@@ -90,6 +80,24 @@ class url_data:
         return video_id_list 
 
     
+    def get_all_data( self):
+        internal_urls = self.get_web_url()
+        all_web_urls = internal_urls + self.web_urls
+        full_url_data = self.get_url_data( dataset = user_url_data )
+
+        pdf_data = self.get_text_from_pdf( pdfs = self.pdfs)
+
+        internal_video_id_list = self.get_video_id_for_query()
+        all_video_ids = internal_video_id_list + self.youtube_video_ids
+
+        all_video_ids_data = self.get_text_from_youtube_video( video_ids = all_video_ids)
+
+        return {
+            'web_urls_data': full_url_data,
+            'pdf_data': pdf_data,
+            'youtube_video_data' : all_video_ids_data
+        }
+        
 
 
         
