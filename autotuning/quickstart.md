@@ -27,10 +27,10 @@ from backend.ModelingAndTuning import ModelLoadingAndTuning
 
 config_obj = global_config(
     ModelName  = 'gpt2',
-    DatasetPath = 'path/to/your/dataset.csv',
+    DatasetPath = 'path/to/your/dataset.csv',# keep None for default dataset 
     FineTuningType = 'instruction_fine_tuning',
     ModelSeqMaxLength = 512,
-    QuantizationType4Bit8Bit = '8bit',
+    QuantizationType4Bit8Bit = None,
     ComputeMetricsList = ['accuracy'],
     PeftType  = 'LORA',
     SaveFormat  = 'gguf',
