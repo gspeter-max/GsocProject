@@ -46,7 +46,11 @@ class global_config:
                 if self.ModelDir:
                     if self.SaveFormat is None :
                         raise RuntimeError('If "model_dir" is provided , you must also specify "SaveFormat"')
-        
+
+                if self.SaveFormat == 'gguf':
+                    if self.QuantizationType4Bit8Bit is not None:
+                        raise RuntimeError('guff with quantization is not supported please chnage `QuantizationType4Bit8Bit = None` or `SaveFormat` ')
+                        
                 if self.SaveFormat not in ('tensorflow','torch','gguf',None):
                     raise NotImplemented('SaveFormat must be in "( tensorflow , torch , gguf )"')
 
