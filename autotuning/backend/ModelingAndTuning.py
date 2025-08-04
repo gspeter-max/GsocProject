@@ -115,7 +115,7 @@ class ModelLoadingAndTuning:
                 load_in_8bit = True
             )
 
-        model = AutoModelForCausalLM.from_pretrained(
+        base_model = AutoModelForCausalLM.from_pretrained(
                 self.HyperparameterConfig.get('ModelName'),
                 quantization_config = quantizationConfig,
                 device_map = 'auto',
@@ -123,7 +123,7 @@ class ModelLoadingAndTuning:
                 )
 
         available_layers = set()
-        for name, _ in model.named_parameters():
+        for name, _ in base_model.named_parameters():
             available_layers.add(str(name).split('.')[-2])
         
         peft_target_modules = self.HyperparameterConfig['PeftConfig']['target_modules']
@@ -131,15 +131,15 @@ class ModelLoadingAndTuning:
         if not set(peft_target_modules).issubset(available_layers):
             raise ValueError(f'{peft_target_modules} is not found in {available_layers} modules')
 
-        model.resize_token_embeddings(len(self.tokenizer))
+        base_model.resize_token_embeddings(len(self.tokenizer))
         with torch.no_grad():
-            model.get_input_embeddings().weight[-1]= torch.mean(model.get_input_embeddings().weight[:-1], dim = 0)
+            base_model.get_input_embeddings().weight[-1]= torch.mean(base_model.get_input_embeddings().weight[:-1], dim = 0)
 
         PeftConfig = self.HyperparameterConfig.get('PeftConfig')
         Lora_config = LoraConfig(
             **PeftConfig
         )
-        model = get_peft_model(model, Lora_config)
+        peft_model = get_peft_model(base_model, Lora_config)
 
         training_arg_config = self.HyperparameterConfig.get('TrainingArguments')
         TrainingArg = TrainingArguments(
@@ -147,7 +147,7 @@ class ModelLoadingAndTuning:
                 )
         
         trainer = Trainer(
-                model = model,
+                model = peft_model,
                 args = TrainingArg,
                 train_dataset = dataset['train_dataset'],
                 eval_dataset = dataset['eval_dataset'],
