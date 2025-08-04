@@ -64,7 +64,6 @@ class UploadDataset( init_information ):
         if self.FineTuningType.lower() == 'instruction_fine_tuning':
             if dataset is None:
                 dataset = load_dataset('yahma/alpaca-cleaned')
-                dataset['train'] = dataset['train'].select(range(10))
 
             if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['instruction','input','output'])):
@@ -113,7 +112,6 @@ class UploadDataset( init_information ):
                     "question" : 'prompt',
                     'answer' : 'completion'
                 })
-                dataset['train'] = dataset['train'].select(range(1000))
 
             if ('train' in list(dataset.keys())) and \
                 (sorted(dataset['train'].column_names) == sorted(['prompt','completion'])):
@@ -195,7 +193,6 @@ class UploadDataset( init_information ):
                 if self.FineTuningType.lower() == 'question_answering':
                     dataset = load_dataset('mou3az/Question-Answering-Generation-Choices')
                     dataset = dataset.remove_columns(['distractors'])
-                    dataset['train'] = dataset['train'].select(range(1000))
                 
                 if self.FineTuningType.lower() == 'rag_fine_tuning':
                     
