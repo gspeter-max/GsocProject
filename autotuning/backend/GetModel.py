@@ -4,6 +4,7 @@ import torch
 import logging
 import shutil
 import subprocess
+import os 
 
 
 logger = logging.getLogger()
@@ -54,7 +55,26 @@ class ConvertModel:
             ptSaveFile = './TempStore'
 
             Model.save_pretrained(ptSaveFile)
-            Tokenizer.save_pretrained( ptSaveFile )
+            Tokenizer.save_pretrained(ptSaveFile)
+
+            print('========================Please wait while an external library is downloading=================')
+            ProcessOutput = subprocess.run(f'pip install -r requirements.txt',\
+                    shell = True, \
+                    stdout = subprocess.PIPE, \
+                    stderr = subprocess.PIPE, \
+                    text = True
+                )
+            print(ProcessOutput.stdout)
+            print(ProcessOutput.stderr)
+
+            ProcessOutput = subprocess.run(f'git clone https://github.com/ggml-org/llama.cpp.git',\
+                    shell = True, \
+                    stdout = subprocess.PIPE, \
+                    stderr = subprocess.PIPE, \
+                    text = True
+                )
+            print(ProcessOutput.stdout)
+            print(ProcessOutput.stderr)
 
             ProcessOutput = subprocess.run(f'mkdir {self.WhereStored}',\
                     shell = True, \
@@ -62,6 +82,8 @@ class ConvertModel:
                     stderr = subprocess.PIPE, \
                     text = True
                 )
+            print(ProcessOutput.stdout)
+            print(ProcessOutput.stderr)            
 
             ProcessOutput = subprocess.run(f'python llama.cpp/convert_hf_to_gguf.py ./TempStore --outfile ./{self.WhereStored}/output_gguf.gguf --outtype q8_0',\
                     shell = True, \
@@ -73,23 +95,18 @@ class ConvertModel:
             print(ProcessOutput.stderr)
 
             shutil.rmtree(ptSaveFile)
-
-            logger.info('''
+            shutil.rmtree('./llama.cpp')
+            pwd = os.getcwd() 
+            logger.info(f'''
             for loading again
                 do this
                 must be check out version of packages like ( torch , torchvision )
 
                     from transformers import AutoModelForCasualLM
-                    import subprocess
-
-                    #pwd = subprocesss.run('pwd', capture_output = True , text = True ).stdout
-                    #pwd = pwd.strip()
-                    or 
-                    pwd = os.getcwd()
 
                     model = AutoModelForCausalLM.from_pretraind(
-                            f"{pwd}/{WhereStored}",
-                            gguf_file = f"{pwd}/{WhereStored}/output_gguf.gguf"
+                            f"{pwd}/{self.WhereStored}",
+                            gguf_file = f"{pwd}/{self.WhereStored}/output_gguf.gguf"
                             )
                 '''
                 )
