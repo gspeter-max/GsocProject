@@ -167,6 +167,7 @@ class ModelLoadingAndTuning:
         # %load_ext tensorboard
         # %tensorboard --logdir ./logs
         trainer.train()
+        merged_model = peft_model.merge_and_unload() 
 
         if (self.HyperparameterConfig.get('ModelDir') is not None) or (self.HyperparameterConfig.get('SaveFormat') is not None):
             from .GetModel import ConvertModel
@@ -175,7 +176,7 @@ class ModelLoadingAndTuning:
                     Format = self.HyperparameterConfig.get('SaveFormat'),
                     WhereStored = self.HyperparameterConfig.get('ModelDir')
                     )
-            convertmodel( model, self.tokenizer )
+            convertmodel( merged_model, self.tokenizer )
 
         pwd = os.getcwd()
         Format = self.HyperparameterConfig.get('EvalSaveFormat') 
