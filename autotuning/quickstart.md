@@ -27,7 +27,7 @@ from backend.ModelingAndTuning import ModelLoadingAndTuning
 
 config_obj = global_config(
     ModelName  = 'gpt2',
-    DatasetPath = 'path/to/your/dataset.csv',# keep None for default dataset 
+    DatasetPath = 'path/to/your/dataset.csv',# keep it None for default dataset 
     FineTuningType = 'instruction_fine_tuning',
     ModelSeqMaxLength = 512,
     QuantizationType4Bit8Bit = None,
