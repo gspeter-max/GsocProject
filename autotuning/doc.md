@@ -138,10 +138,5 @@ python -m backend.runner
 
 * Make sure you supply a **valid Hugging Face token**
 * Compatible with **Colab**, **multi-GPU**, **32-bit machines**, and **CLI-based environments**
-* Future enhancements: UI, Auto Layer Detection, Multi-model fusion
-
----
-
+  
 For contributions, feature requests, or issues, open a ticket at `https://github.com/yourrepo/autotuning`
-
-Built with ❤️ for large-scale LLM fine-tuning.
