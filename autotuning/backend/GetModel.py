@@ -1,4 +1,3 @@
-
 from transformers import TFAutoModelForCausalLM
 import torch
 import logging
@@ -32,25 +31,24 @@ class ConvertModel:
             tfmodel.save_pretrained( self.WhereStored )
             Tokenizer.save_pretrained( self.WhereStored )
             shutil.rmtree(ptSaveFile)
-            logger.info(''' load out sotred model using huggingface transformer library
+            logger.info(f''' load out sotred model using huggingface transformer library
                 example :  in tensorflow format loadding
                     from transformers import TFAutoModelForCausalLM
 
-                    model = TFAutoModelForCausalLM.from_pretrained( WhereStored , from_pt = True )
+                    model = TFAutoModelForCausalLM.from_pretrained( {self.WhereStored} )
                 '''
                     )
 
         if self.Format.lower() == 'torch':
             Model.save_pretrained( self.WhereStored )
 
-            logger.info(''' load out sotred model using huggingface transformer library
+            logger.info(f''' load out sotred model using huggingface transformer library
                     example :  in torch  format loadding
                         from transformers import AutoModelForCausalLM
 
-                        model = AutoModelForCausalLM.from_pretrained( WhereStored )
+                        model = AutoModelForCausalLM.from_pretrained( {self.WhereStored} )
                     '''
                     )
-
         if self.Format == 'gguf':
             ptSaveFile = './TempStore'
 
@@ -59,18 +57,18 @@ class ConvertModel:
 
             print('========================Please wait while an external library is downloading=================')
             ProcessOutput = subprocess.run(f'pip install -r requirements.txt',\
-                    shell = True, \
-                    stdout = subprocess.PIPE, \
-                    stderr = subprocess.PIPE, \
+                    shell = True,\
+                    stdout = subprocess.PIPE,\
+                    stderr = subprocess.PIPE,\
                     text = True
                 )
             print(ProcessOutput.stdout)
             print(ProcessOutput.stderr)
 
             ProcessOutput = subprocess.run(f'git clone https://github.com/ggml-org/llama.cpp.git',\
-                    shell = True, \
-                    stdout = subprocess.PIPE, \
-                    stderr = subprocess.PIPE, \
+                    shell = True,\
+                    stdout = subprocess.PIPE,\
+                    stderr = subprocess.PIPE,\
                     text = True
                 )
             print(ProcessOutput.stdout)
@@ -102,13 +100,16 @@ class ConvertModel:
                 do this
                 must be check out version of packages like ( torch , torchvision )
 
-                    from transformers import AutoModelForCasualLM
+                    pip install "numpy<2"
+                    pip install gguf>=0.10.0
+                    # "restart kernel" if you are using notebook
+                    from transformers import AutoModelForCausalLM
 
-                    model = AutoModelForCausalLM.from_pretraind(
+                    model = AutoModelForCausalLM.from_pretrained(
                             f"{pwd}/{self.WhereStored}",
                             gguf_file = f"{pwd}/{self.WhereStored}/output_gguf.gguf"
                             )
+                
                 '''
                 )
-
         return f'model is stored in {self.WhereStored} , {self.Format} format'
