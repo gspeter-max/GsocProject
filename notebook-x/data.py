@@ -2,12 +2,13 @@ import requests
 import pymupdf 
 from bs4 import BeautifulSoup 
 from googlesearch import search as search_function
-from youtube_transcript_api import YouTubeTranscripApi
+from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_search import YoutubeSearch
+from typing import Union 
 
 class url_data:
-    def __init__( self , query : str  ,web_urls : Union[ list, str], \
-            pdfs : Union[ list, str], youtube_video_ids : Union[list, str] ):
+    def __init__( self , query : str  ,web_urls : Union[ list, str]= [], \
+        pdfs : Union[ list, str]= [], youtube_video_ids : Union[list, str]= [] ):
         self.query = query 
         self.web_urls = web_urls 
         self.pdfs = pdfs
@@ -15,7 +16,7 @@ class url_data:
 
     def get_web_url( self):
         web_url = []
-        for url in search_function( self.query, num = 1, stop = 1):
+        for url in search_function( self.query, num_results = 1):
             web_url.append( url )
 
         return web_url
@@ -30,9 +31,9 @@ class url_data:
             soup = BeautifulSoup( response.text, 'html.parser')
             
             for p_teg in soup.select('p'):
-                if p_teg.get_text( strip = true) == '':
+                if p_teg.get_text( strip = True) == '':
                     continue 
-                text += p_teg.get_text( strip = true )
+                text += p_teg.get_text( strip = True )
         
 
         return text
@@ -58,7 +59,7 @@ class url_data:
         text = ''
         for index, video_id in enumerate(video_ids):
             fetch_obj = transcript_api.list( video_id = video_id )
-            for value in fetch_object:
+            for value in fetch_obj:
                 language = value.language_code
             
             text_fetch_obj = transcript_api.fetch( video_id = video_id , languages = [language])
@@ -72,7 +73,7 @@ class url_data:
         return text 
 
     def get_video_id_for_query( self ):
-        video_info_dict = YoutubeSearch( self.query, max_results = 10).to_dict()
+        video_info_dict = YoutubeSearch( self.query, max_results = 1).to_dict()
         video_id_list = [] 
         for video_info in video_info_dict:
             video_id_list.append( video_info.get('id'))
@@ -83,7 +84,7 @@ class url_data:
     def get_all_data( self):
         internal_urls = self.get_web_url()
         all_web_urls = internal_urls + self.web_urls
-        full_url_data = self.get_url_data( dataset = user_url_data )
+        full_url_data = self.get_url_data( urls = all_web_urls )
 
         pdf_data = self.get_text_from_pdf( pdfs = self.pdfs)
 
@@ -97,11 +98,6 @@ class url_data:
             'pdf_data': pdf_data,
             'youtube_video_data' : all_video_ids_data
         }
-        
 
-
-        
-        
-
-
-
+# full_data = url_data(query = 'what is llm')
+# _full_data = full_data.get_all_data() 
