@@ -5,6 +5,7 @@ from googlesearch import search as search_function
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_search import YoutubeSearch
 from typing import Union 
+from langchain_core.documents import Document
 
 class url_data:
     def __init__( self , query : str  ,web_urls : Union[ list, str]= [], \
@@ -30,10 +31,11 @@ class url_data:
             response = requests.get( url )
             soup = BeautifulSoup( response.text, 'html.parser')
             
-            for p_teg in soup.select('p'):
+            for p_teg in soup.select('p,pre'):
                 if p_teg.get_text( strip = True) == '':
                     continue 
                 text += p_teg.get_text( strip = True )
+                text += ' ' 
         
 
         return text
@@ -92,12 +94,21 @@ class url_data:
         all_video_ids = internal_video_id_list + self.youtube_video_ids
 
         all_video_ids_data = self.get_text_from_youtube_video( video_ids = all_video_ids)
-
-        return {
+        
+        docs = [] 
+        dictionary =  {
             'web_urls_data': full_url_data,
             'pdf_data': pdf_data,
             'youtube_video_data' : all_video_ids_data
         }
+        for key, value in dictionary.items():
+            doc = Document(
+                page_content = str(value), 
+                metadata = {'source': 'local'}
+            )
+            docs.append(doc)
+        
+        return docs 
 
 # full_data = url_data(query = 'what is llm')
 # _full_data = full_data.get_all_data() 
