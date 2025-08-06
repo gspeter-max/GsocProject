@@ -41,7 +41,6 @@ class generate_reponse:
 
     def generate_content( self,states : dict ):
         context = '\n\n'.join( document.page_content for document in states['context'] )
-        print(f"chat history : {self.memory.load_memory_variables({})['chat_history']}")
         raw_prompt = {
                 'chat_history' : self.memory.load_memory_variables({})['chat_history'],
                 'context': context,
