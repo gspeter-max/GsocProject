@@ -76,7 +76,7 @@ def generate_conversation_speech( script: str ,output_audio_path : str ,\
     )
 
     blob = response.candidates[0].content.parts[0].inline_data
-    file_path = output_audio_path + 'wav'
+    file_path = output_audio_path + '.wav'
 
     with wave.open( file_path ,'wb') as wf:
         wf.setnchannels(channels)
