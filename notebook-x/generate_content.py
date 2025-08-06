@@ -11,6 +11,26 @@ class generate_reponse:
     def __init__( self, model_name = 'gemini-2.5-flash' ):
         self.model_name = model_name
 
+    def get_similar_content( self, states : dict ):
+        similar_content = self.vectorstore.similarity_search(query = states['question'] )
+        states['context'] = similar_content
+        return states 
+
+    def generate_content( self,states : dict ):
+        context = '\n\n'.join( document.page_content for document in states['context'] )
+        raw_prompt = {
+                'chat_history' : self.memory.load_memory_variables({})['chat_history'],
+                'context': context,
+                'question': states['question']
+                }
+
+        self.prompt = self.prompt.invoke(raw_prompt)
+        result = self.llm.invoke(self.prompt)
+        self.memory.chat_memory.add_user_message(states['question'])
+        self.memory.chat_memory.add_ai_message(result)
+
+        return {'Answer' : result}
+
     def create_response( self,query):
 
         url_data_class = url_data(query = query )
@@ -23,7 +43,7 @@ class generate_reponse:
 
         splited_docs = rc_text_splitter.split_documents( url_docs )
 
-        llm = init_chat_model( model = self.model_name , model_provider = 'google_genai' ,\
+        self.llm = init_chat_model( model = self.model_name , model_provider = 'google_genai' ,\
                 google_api_key = 'AIzaSyDKUGAMTjpKpNxmVGU7Wi3pMM1QTumsYNI'
                 )
 
@@ -31,16 +51,16 @@ class generate_reponse:
                 google_api_key = 'AIzaSyDKUGAMTjpKpNxmVGU7Wi3pMM1QTumsYNI'
                 )
 
-        vectorstore = InMemoryVectorStore( embedding )
-        vectorstore.add_documents(splited_docs)
-        memory = ConversationSummaryMemory(
+        self.vectorstore = InMemoryVectorStore( embedding )
+        self.vectorstore.add_documents(splited_docs)
+        self.memory = ConversationSummaryMemory(
                 memory_key = 'chat_history',
                 max_num_tokens = 200,
                 llm = llm,
                 return_messages = True 
                 )
 
-        prompt = ChatPromptTemplate.from_template(
+        self.prompt = ChatPromptTemplate.from_template(
                 '''
                 Previous_Conversation : {chat_history}
                 Context : {context}
@@ -48,30 +68,17 @@ class generate_reponse:
                 Answer : 
             '''
             ) 
-
-        def get_similar_content( states : dict ):
-            similar_content = vectorstore.similarity_search(query = states['question'] )
-            states['context'] = similar_content
-            return states 
-
-        def generate_content( prompt,memory,states : dict ):
-            context = '\n\n'.join( document.page_content for document in states['context'] )
-            raw_prompt = {
-                    'chat_history' : memory.load_memory_variables({})['chat_history'],
-                    'context': context,
-                    'question': states['question']
-                    }
-
-            prompt = prompt.invoke(raw_prompt)
-            result = llm.invoke(prompt)
-            memory.chat_memory.add_user_message(states['question'])
-            memory.chat_memory.add_ai_message(result)
-
-            return {'Answer' : result}
     
     def get_response(self,query):
         
-        states = get_similar_content( states = {'question' : query} )
-        generated_content = generate_content( prompt, states )
+        self.create_response(query)
+        states = self.get_similar_content( states = {'question' : query} )
+        generated_content = self.generate_content( states )
 
-        print(f'Answer : {generated_content["Answer"].content}')
+        return {'Answer' : generated_content["Answer"].content}
+
+
+
+generate = generate_reponse()
+response = generate.get_response( 'what is llm ? ')
+
