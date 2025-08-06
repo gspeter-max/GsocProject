@@ -8,8 +8,8 @@ from langchain.memory import ConversationSummaryBufferMemory
 import os
 
 
-class generate_reponse:
-    def __init__( self, model_name = 'gemini-2.5-flash',first_query = 'what is ai'):
+class generate_response:
+    def __init__( self, model_name = 'gemini-2.5-flash'):
 
         self.llm = init_chat_model(model_name, model_provider="google-genai", \
             google_api_key = 'AIzaSyDKUGAMTjpKpNxmVGU7Wi3pMM1QTumsYNI'
@@ -66,10 +66,7 @@ class generate_reponse:
         self.vectorstore = InMemoryVectorStore( self.embedding )
         self.vectorstore.add_documents(splited_docs)
 
-    def get_response(self,query):
-
-        url_data_class = url_data(query = query )
-        url_docs = url_data_class.get_all_data()
+    def get_response(self,query,url_docs):
 
         self.create_response( url_docs )
         states = self.get_similar_content( states = {'question' : query} )
@@ -82,4 +79,4 @@ class generate_reponse:
         return {'Answer' : remove_bad_things(answer) }
 
 
-generate = generate_reponse()
+generate = generate_response()

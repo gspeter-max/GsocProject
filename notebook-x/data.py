@@ -104,10 +104,7 @@ class url_data:
             'pdf_data': pdf_data,
             'youtube_video_data' : all_video_ids_data
         }
-        
-        if return_all_combined_resources is True:
-            return {'full_content' : dictionary['web_urls_data'] + ' ' + dictionary['pdf_data'] + ' ' + dictionary['youtube_video_data']}
-        
+
         for key, value in dictionary.items():
             doc = Document(
                 page_content = str(value),
@@ -115,7 +112,6 @@ class url_data:
             )
             docs.append(doc)
 
-        return docs
-
+        return docs ,{'full_content' : dictionary['web_urls_data'] + ' ' + dictionary['pdf_data'] + ' ' + dictionary['youtube_video_data']} if return_all_combined_resources is True else None 
 # full_data = url_data(query = 'what is llm')
 # _full_data = full_data.get_all_data()
