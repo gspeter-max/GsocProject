@@ -45,3 +45,6 @@ class create_notebook:
             print(response['Answer'])
         else:
             return response
+
+notebook = create_notebook()
+notebook.send_query(query = 'what is llm ? ')
