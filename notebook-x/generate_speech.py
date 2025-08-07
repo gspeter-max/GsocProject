@@ -2,12 +2,15 @@ import wave
 from google import genai
 from google.genai import types
 from typing import Tuple 
+import os 
+from google.colab import userdata 
 
-client = genai.Client( api_key = os.environ['GOOGLE_API_KEY'])
+# client = genai.Client( api_key = os.environ['GOOGLE_API_KEY'])
+client = genai.Client( api_key = 'AIzaSyDKUGAMTjpKpNxmVGU7Wi3pMM1QTumsYNI')
 
 class Studio:
     def __init__( self , available_docs : str, person1 : Tuple[str,str] = ('peter','Enceladus'), \
-        person2 : Tupl[str, str] = ('mark','algieba') ):
+        person2 : Tuple[str, str] = ('mark','algieba') ):
         self.available_docs = available_docs
         self.person1 = person1  # (in_role_name, voice_name) = ( peter, Enceladus)
         self.person2 = person2  # (in_role_name, voice_name) = ( mark , algieba )
@@ -58,7 +61,7 @@ class Studio:
                 multi_speaker_voice_config= types.MultiSpeakerVoiceConfig(
                     speaker_voice_configs=[
                         types.SpeakerVoiceConfig(
-                            speaker = self.person2[0],
+                            speaker = self.person1[0],
                             voice_config=types.VoiceConfig(
                                 prebuilt_voice_config=types.PrebuiltVoiceConfig(
                                     voice_name = self.person1[1]

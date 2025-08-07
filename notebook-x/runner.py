@@ -1,3 +1,8 @@
+# git clone https://github.com/gspeter-max/GsocProject.git
+# cd ./GsocProject/notebook-x
+# python -m runner 
+
+
 from data import url_data
 from generate_speech import Studio
 from generate_content import generate_response
@@ -8,7 +13,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 class create_notebook:
-    def __init__( self, web_links = None, pdfs = None, youtube_video_ids = None):
+    def __init__( self, web_links = [], pdfs = [], youtube_video_ids = []):
         self.provided_links = (web_links, pdfs, youtube_video_ids ) 
         self.generate = generate_response()
 
@@ -19,7 +24,7 @@ class create_notebook:
         ):
         full_data = url_data(query = query, web_urls = self.provided_links[0],\
                 pdfs = self.provided_links[1],
-                youtube_video_ids = youtube_video_ids[2]
+                youtube_video_ids = self.provided_links[2]
             )
         full_docs_data,full_content_dict = full_data.get_all_data( return_all_combined_resources = True )
         if generate_conversation is True:
@@ -34,11 +39,11 @@ class create_notebook:
             logger.info(f'conversation is stored in {full_stored_path}')
 
             if save_and_play is True:
-                play_audio(full_stored_path)
+                self.generate.play_audio(full_stored_path)
             
             if mp3_converted_conversation is True:
                 mp3_stored_path = f'{os.getcwd()}/conversation.mp3'
-                convert_to_mp3( full_stored_path, mp3_stored_path)
+                self.generate.convert_to_mp3( full_stored_path, mp3_stored_path)
 
         response = self.generate.get_response(query, full_docs_data)
         if print_here is True:
@@ -47,4 +52,4 @@ class create_notebook:
             return response
 
 notebook = create_notebook()
-notebook.send_query(query = 'what is llm ? ')
+notebook.send_query(query = 'what is llm ? ', mp3_converted_conversation = True, generate_conversation = True)

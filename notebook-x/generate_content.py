@@ -6,6 +6,7 @@ from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate
 from langchain.memory import ConversationSummaryBufferMemory
 import os
+import re 
 
 
 class generate_response:

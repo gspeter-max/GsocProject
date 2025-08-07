@@ -88,6 +88,9 @@ class url_data:
 
     def get_all_data( self, return_all_combined_resources = False ):
         internal_urls = self.get_web_url()
+        print(f'internal_urls : {internal_urls}')
+        print(f'web urls : {self.web_urls}')
+        
         all_web_urls = internal_urls + self.web_urls
         full_url_data = self.get_url_data( urls = all_web_urls )
 

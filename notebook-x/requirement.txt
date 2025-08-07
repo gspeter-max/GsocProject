@@ -7,4 +7,4 @@ youtube-search==2.1.2
 langchain-community==0.3.27 
 pydub==0.25.1
 google-genai==1.28.0
-
+langchain-google-genai==2.1.9
